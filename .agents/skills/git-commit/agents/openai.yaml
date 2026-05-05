@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Commit"
+  short_description: "Create clear Conventional Commit messages"
+  default_prompt: "Use $git-commit to inspect staged changes and create a Conventional Commit."
