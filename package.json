@@ -1,0 +1,64 @@
+{
+  "name": "early-repair",
+  "version": "0.0.0",
+  "description": "CLI for early repair workflows",
+  "license": "Apache-2.0 OR MIT",
+  "type": "module",
+  "bin": {
+    "early-repair": "./dist/src/index.js"
+  },
+  "files": [
+    "dist/src",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "wireit",
+    "dev": "node src/index.ts",
+    "lint": "wireit",
+    "lint:fix": "biome check --fix .",
+    "check": "pnpm run build && pnpm run lint",
+    "clean": "rm -rf dist .wireit *.tsbuildinfo"
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc --build --pretty",
+      "clean": "if-file-deleted",
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json",
+        "package.json"
+      ],
+      "output": [
+        "dist/**",
+        "*.tsbuildinfo"
+      ]
+    },
+    "lint": {
+      "command": "biome check .",
+      "files": [
+        "src/**/*.ts",
+        "biome.json",
+        "package.json",
+        "tsconfig.json"
+      ],
+      "output": [],
+      "dependencies": [
+        "build"
+      ]
+    }
+  },
+  "dependencies": {
+    "@filoz/synapse-sdk": "^0.40.0",
+    "cleye": "^2.3.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.4.11",
+    "@types/node": "^25.6.0",
+    "typescript": "6.0.3",
+    "wireit": "^0.14.12"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.25.0"
+}
