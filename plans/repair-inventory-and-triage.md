@@ -48,13 +48,13 @@ Use:
 
 ## Inventory Model
 
-- Store normalized tables for providers, data sets, roots, sync metadata, and provider registry enrichment.
+- Store normalized tables for providers, data sets, pieces, sync metadata, and provider registry enrichment.
 - Key subgraph providers by normalized service-provider address, and store registry enrichment separately with numeric provider ID, service-provider address, PDP service URL, name, active status, checked timestamp, and last error.
 - During sync, fetch active registry providers from Synapse SDK and join them to subgraph providers by service-provider address.
 - During triage, use only the stored provider ID/address mapping from the local inventory; do not perform live chain or registry lookups.
-- Treat affected pieces for a risky provider as active, non-removed roots in active data sets owned by that provider.
-- Treat surviving repair sources as active, non-removed roots with the same `cid` on a different provider.
-- Use `root.cid` as the piece identity; it is sufficient because the CID embeds the size.
+- Treat affected pieces for a risky provider as active, non-removed pieces in active data sets owned by that provider.
+- Treat surviving repair sources as active, non-removed pieces with the same `cid` on a different provider.
+- Use `piece.cid` as the piece identity; it is sufficient because the CID embeds the size.
 - Do not use fault state to decide affected pieces in v1. Fault detection is handled by a separate job/tool; this inventory supports repair planning for a whole provider or a specified dataset.
 - Mark a dataset:
   - `recoverable` when every affected piece has at least one surviving source.
@@ -90,8 +90,8 @@ Use:
 
 - Add Node's built-in test runner and wire it into `pnpm run check`.
 - Add unit tests for network default resolution, DB initialization/status reporting, GraphQL pagination loop behavior, inventory import upserts, and triage classification.
-- Add mocked GraphQL sync tests that feed paginated provider/data set/root responses into a temp SQLite DB, then assert both `id_gt` pagination requests and exact DB placement: rows land in the expected tables, foreign keys/addresses connect correctly, and sync metadata is recorded without persisted row-count fields.
-- Add fixture-based triage tests for recoverable, partial, unrecoverable, removed-root, inactive-dataset, provider ID/address resolution, dataset filtering, and `--skip-recoverable` scenarios.
+- Add mocked GraphQL sync tests that feed paginated provider/data set/piece responses into a temp SQLite DB, then assert both `id_gt` pagination requests and exact DB placement: rows land in the expected tables, foreign keys/addresses connect correctly, and sync metadata is recorded without persisted row-count fields.
+- Add fixture-based triage tests for recoverable, partial, unrecoverable, removed-piece, inactive-dataset, provider ID/address resolution, dataset filtering, and `--skip-recoverable` scenarios.
 - Verify `pnpm dev -- --help` shows commands.
 - Verify generated GraphQL types compile.
 - Smoke-test `status` on a new DB and after fixture import.

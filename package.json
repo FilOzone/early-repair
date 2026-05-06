@@ -48,7 +48,7 @@
       ]
     },
     "test": {
-      "command": "node --test src/**/*.test.ts",
+      "command": "node --test src/*.test.ts",
       "files": [
         "src/**/*.ts",
         "package.json",
@@ -63,7 +63,8 @@
   "dependencies": {
     "@filoz/synapse-sdk": "^0.40.0",
     "better-sqlite3": "^12.9.0",
-    "cleye": "^2.3.0"
+    "cleye": "^2.3.0",
+    "drizzle-orm": "^0.45.2"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.11",
