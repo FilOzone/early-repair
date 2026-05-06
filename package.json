@@ -16,7 +16,8 @@
     "dev": "node src/index.ts",
     "lint": "wireit",
     "lint:fix": "biome check --fix .",
-    "check": "pnpm run build && pnpm run lint",
+    "test": "wireit",
+    "check": "pnpm run build && pnpm run lint && pnpm run test",
     "clean": "rm -rf dist .wireit *.tsbuildinfo"
   },
   "wireit": {
@@ -45,20 +46,46 @@
       "dependencies": [
         "build"
       ]
+    },
+    "test": {
+      "command": "node --test src/**/*.test.ts",
+      "files": [
+        "src/**/*.ts",
+        "package.json",
+        "tsconfig.json"
+      ],
+      "output": [],
+      "dependencies": [
+        "build"
+      ]
     }
   },
   "dependencies": {
     "@filoz/synapse-sdk": "^0.40.0",
+    "better-sqlite3": "^12.9.0",
     "cleye": "^2.3.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.11",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.6.0",
     "typescript": "6.0.3",
     "wireit": "^0.14.12"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^24.14.0",
+      "onFail": "download"
+    }
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   },
   "packageManager": "pnpm@10.25.0"
 }

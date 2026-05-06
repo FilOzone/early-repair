@@ -2,9 +2,13 @@
 
 import { cli } from 'cleye'
 
+import { status } from './commands/status.ts'
+import { sync } from './commands/sync.ts'
+
 const argv = cli({
   name: 'early-repair',
   version: '0.0.0',
+  commands: [status, sync],
   flags: {
     verbose: {
       type: Boolean,
@@ -14,8 +18,7 @@ const argv = cli({
   },
 })
 
-if (argv.flags.verbose) {
-  console.error('Verbose logging enabled')
+if (!argv.command) {
+  argv.showHelp()
+  process.exitCode = 1
 }
-
-argv.showHelp()
