@@ -43,8 +43,7 @@ describe('inventory status', () => {
       () => readInventoryStatus(path),
       (error) =>
         error instanceof UnsupportedInventorySchemaError &&
-        error.message ===
-          `Unsupported inventory DB schema in ${path}: missing table providers. Run inventory sync to rebuild.`
+        error.message === `Unsupported inventory DB schema in ${path}: missing table providers. Run sync to rebuild.`
     )
   })
 
@@ -55,8 +54,7 @@ describe('inventory status', () => {
       () => readInventoryStatus(path),
       (error) =>
         error instanceof UnsupportedInventorySchemaError &&
-        error.message ===
-          `Unsupported inventory DB schema version in ${path}: expected 1, got 2. Run inventory sync to rebuild.`
+        error.message === `Unsupported inventory DB schema version in ${path}: expected 1, got 2. Run sync to rebuild.`
     )
   })
 })

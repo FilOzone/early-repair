@@ -24,10 +24,9 @@ Use:
 - Resolve configuration in this order: CLI flag, network default.
 - Raise the package Node engine to `>=24.14.0` to match current project practice and reduce native dependency/runtime variance.
 - Add CLI commands:
-  - `inventory sync --network <mainnet|calibration> [--subgraph-url <url>] [--rpc-url <url>] [--db <path>]`
-  - `inventory status [--db <path>] [--json]`
-  - `triage provider <provider-id-or-address> [--dataset <set-id>] [--skip-recoverable] [--db <path>] [--rpc-url <url>] [--json]`
-  - `triage dataset <set-id> [--skip-recoverable] [--db <path>] [--json]`
+  - `sync --network <mainnet|calibration> [--subgraph-url <url>] [--rpc-url <url>] [--db <path>]`
+  - `status [--db <path>] [--json]`
+  - `triage [--provider <provider-id-or-address> | --dataset <set-id>] [--skip-recoverable] [--db <path>] [--rpc-url <url>] [--json]`
 - Default DB path: `.early-repair/inventory.sqlite`.
 
 ## GraphQL Codegen
@@ -44,7 +43,7 @@ Use:
 - Keep the previous DB untouched if fetch/import/validation fails, avoiding partially refreshed inventory.
 - Record sync metadata: network, subgraph URL, RPC URL, `_meta.block.number`, `_meta.block.hash`, started/completed timestamps, and schema version.
 - Do not add a migration framework in v1. The inventory DB is derived data, so rebuilding from the subgraph is the schema upgrade path.
-- If a command opens an unsupported DB schema version, fail with an explicit message to run `inventory sync` and rebuild.
+- If a command opens an unsupported DB schema version, fail with an explicit message to run `sync` and rebuild.
 - Do not store repair/session state, manual notes, or operator decisions in this DB unless migrations are added later.
 
 ## Inventory Model
@@ -65,11 +64,11 @@ Use:
 
 ## Operator Output
 
-- `triage provider` resolves numeric provider IDs through the stored local registry mapping, then matches subgraph `Provider.address`.
-- `triage provider --dataset <set-id>` limits output to one dataset owned by that provider.
-- `triage dataset <set-id>` reports repair inventory for a single dataset, independent of provider-wide risk.
+- `triage --provider <provider-id-or-address>` resolves numeric provider IDs through the stored local registry mapping, then matches subgraph `Provider.address`.
+- `triage --provider <provider-id-or-address> --dataset <set-id>` limits output to one dataset owned by that provider.
+- `triage --dataset <set-id>` reports repair inventory for a single dataset, independent of provider-wide risk.
 - `--skip-recoverable` summarizes fully recoverable datasets into aggregate statistics and prints details only for partial or unrecoverable datasets.
-- `inventory status` reports whether the DB exists, schema version, configured network, last synced subgraph block/hash/time, source URL, live row counts per inventory table, and whether the local inventory is empty or stale.
+- `status` reports whether the DB exists, schema version, configured network, last synced subgraph block/hash/time, source URL, live row counts per inventory table, and whether the local inventory is empty or stale.
 - Default output shows:
   - provider summary
   - affected dataset count
@@ -95,7 +94,7 @@ Use:
 - Add fixture-based triage tests for recoverable, partial, unrecoverable, removed-root, inactive-dataset, provider ID/address resolution, dataset filtering, and `--skip-recoverable` scenarios.
 - Verify `pnpm dev -- --help` shows commands.
 - Verify generated GraphQL types compile.
-- Smoke-test `inventory status` on a new DB and after fixture import.
+- Smoke-test `status` on a new DB and after fixture import.
 - Run `pnpm run check`.
 
 ## Assumptions

@@ -65,7 +65,7 @@ export class InventoryStatusError extends Error {
 
 export class UnsupportedInventorySchemaError extends Error {
   constructor(message: string) {
-    super(`${message}. Run inventory sync to rebuild.`)
+    super(`${message}. Run sync to rebuild.`)
     this.name = 'UnsupportedInventorySchemaError'
   }
 }
@@ -132,7 +132,7 @@ export function readInventoryStatus(dbPath: string): InventoryStatus {
 // Temporary DB reader stub for the status slice.
 //
 // The real inventory schema and Drizzle access layer will land with
-// `inventory sync`. Until then, status only proves the CLI contract:
+// `sync`. Until then, status only proves the CLI contract:
 // read-only open, exact unsupported-schema errors, latest metadata row,
 // and live table counts for the provisional inventory tables.
 function readStubInventorySnapshot(
