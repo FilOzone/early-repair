@@ -40,9 +40,9 @@ Use:
 ## Sync Strategy
 
 - Treat subgraph ingestion as a scraper-style snapshot, not an incremental indexer.
-- Build each sync into a temporary SQLite database file using the current schema, validate required metadata and table counts, then atomically replace the previous inventory DB.
+- Build each sync into a temporary SQLite database file using the current schema, validate required metadata and minimum required content, then atomically replace the previous inventory DB.
 - Keep the previous DB untouched if fetch/import/validation fails, avoiding partially refreshed inventory.
-- Record sync metadata: network, subgraph URL, RPC URL, `_meta.block.number`, `_meta.block.hash`, started/completed timestamps, schema version, and imported row counts.
+- Record sync metadata: network, subgraph URL, RPC URL, `_meta.block.number`, `_meta.block.hash`, started/completed timestamps, and schema version.
 - Do not add a migration framework in v1. The inventory DB is derived data, so rebuilding from the subgraph is the schema upgrade path.
 - If a command opens an unsupported DB schema version, fail with an explicit message to run `inventory sync` and rebuild.
 - Do not store repair/session state, manual notes, or operator decisions in this DB unless migrations are added later.
@@ -69,7 +69,7 @@ Use:
 - `triage provider --dataset <set-id>` limits output to one dataset owned by that provider.
 - `triage dataset <set-id>` reports repair inventory for a single dataset, independent of provider-wide risk.
 - `--skip-recoverable` summarizes fully recoverable datasets into aggregate statistics and prints details only for partial or unrecoverable datasets.
-- `inventory status` reports whether the DB exists, schema version, configured network, last synced subgraph block/hash/time, source URL, row counts per inventory table, and whether the local inventory is empty or stale.
+- `inventory status` reports whether the DB exists, schema version, configured network, last synced subgraph block/hash/time, source URL, live row counts per inventory table, and whether the local inventory is empty or stale.
 - Default output shows:
   - provider summary
   - affected dataset count
@@ -91,7 +91,7 @@ Use:
 
 - Add Node's built-in test runner and wire it into `pnpm run check`.
 - Add unit tests for network default resolution, DB initialization/status reporting, GraphQL pagination loop behavior, inventory import upserts, and triage classification.
-- Add mocked GraphQL sync tests that feed paginated provider/data set/root responses into a temp SQLite DB, then assert both `id_gt` pagination requests and exact DB placement: rows land in the expected tables, foreign keys/addresses connect correctly, and sync metadata row counts match.
+- Add mocked GraphQL sync tests that feed paginated provider/data set/root responses into a temp SQLite DB, then assert both `id_gt` pagination requests and exact DB placement: rows land in the expected tables, foreign keys/addresses connect correctly, and sync metadata is recorded without persisted row-count fields.
 - Add fixture-based triage tests for recoverable, partial, unrecoverable, removed-root, inactive-dataset, provider ID/address resolution, dataset filtering, and `--skip-recoverable` scenarios.
 - Verify `pnpm dev -- --help` shows commands.
 - Verify generated GraphQL types compile.
