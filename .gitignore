@@ -1,4 +1,6 @@
 .codex
+.early-repair
+.zed
 node_modules
 dist
 .wireit

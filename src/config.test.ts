@@ -10,6 +10,7 @@ describe('config', () => {
       subgraphUrl:
         'https://api.goldsky.com/api/public/project_cmdfaaxeuz6us01u359yjdctw/subgraphs/pdp-explorer/mainnet311c/gn',
       rpcUrl: 'https://api.node.glif.io/rpc/v1',
+      fwssServiceAddress: '0x8408502033c418e1bbc97ce9ac48e5528f371a9f',
     })
 
     assert.deepEqual(resolveNetworkDefaults('calibration'), {
@@ -17,6 +18,7 @@ describe('config', () => {
       subgraphUrl:
         'https://api.goldsky.com/api/public/project_cmdfaaxeuz6us01u359yjdctw/subgraphs/pdp-explorer/calibration311c/gn',
       rpcUrl: 'https://api.calibration.node.glif.io/rpc/v1',
+      fwssServiceAddress: '0x02925630df557f957f70e112ba06e50965417ca0',
     })
   })
 
