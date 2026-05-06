@@ -16,12 +16,12 @@ Use:
   - runtime: `drizzle-orm`, `better-sqlite3`, `viem`
   - dev: `@types/better-sqlite3`, `@graphql-codegen/cli`, `@graphql-codegen/client-preset`
 - Add GraphQL schema snapshot and generated typed operations under `src/subgraph/`.
-- Add network defaults for `mainnet` and `calibration`; every default remains overridable with flags.
+- Add network defaults for `mainnet` and `calibration`; every default remains overridable with CLI flags.
   - `mainnet` subgraph: `https://api.goldsky.com/api/public/project_cmdfaaxeuz6us01u359yjdctw/subgraphs/pdp-explorer/mainnet311c/gn`
   - `calibration` subgraph: `https://api.goldsky.com/api/public/project_cmdfaaxeuz6us01u359yjdctw/subgraphs/pdp-explorer/calibration311c/gn`
   - `mainnet` RPC: `https://api.node.glif.io/rpc/v1`
   - `calibration` RPC: `https://api.calibration.node.glif.io/rpc/v1`
-- Resolve configuration in this order: CLI flag, environment variable, network default.
+- Resolve configuration in this order: CLI flag, network default.
 - Raise the package Node engine to `>=24.14.0` to match current project practice and reduce native dependency/runtime variance.
 - Add CLI commands:
   - `inventory sync --network <mainnet|calibration> [--subgraph-url <url>] [--rpc-url <url>] [--db <path>]`
