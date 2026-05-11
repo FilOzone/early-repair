@@ -3,18 +3,17 @@ import { renameSync, rmSync } from 'node:fs'
 import { type InventoryDb, initializeInventoryDb, openInventoryDb } from './db.ts'
 import { recordSyncMetadata, upsertDataSets, upsertPieces, upsertProviders } from './inventory-import.ts'
 import {
-  fetchProviderDataSetsPage,
+  fetchDataSetsPage,
   fetchProvidersPage,
   fetchRootsPage,
+  fetchServiceByAddress,
   fetchSubgraphMetadata,
-  fetchSubgraphPieceCount,
   type GraphqlFetch,
-  type SubgraphDataSet,
-  type SubgraphProvider,
   subgraphPageSize,
 } from './subgraph.ts'
 
 export type SyncCollection = 'providers' | 'data_sets' | 'pieces'
+export const rootSetIdChunkSize = 250
 
 export type SyncProgressEvent =
   | {
@@ -33,9 +32,6 @@ export type SyncProgressEvent =
       rows: number
       totalRows: number
       done: boolean
-      providerAddress?: string
-      dataSetId?: string
-      dataSetSetId?: string
     }
   | {
       type: 'rows-imported'
@@ -101,25 +97,19 @@ export async function syncInventory(options: SyncInventoryOptions): Promise<Sync
     initializeInventoryDb(inventory)
     options.onProgress?.({ type: 'schema-initialized' })
 
+    const fwssService = await fetchServiceByAddress(options.subgraphUrl, fwssServiceAddress, fetchFn)
+
     const providers = await fetchInventoryPages('providers', options, (idGt) =>
       fetchProvidersPage(options.subgraphUrl, idGt, fetchFn)
     )
     upsertProviders(inventory, providers)
     options.onProgress?.({ type: 'rows-imported', collection: 'providers', rows: providers.length })
 
-    const dataSetImport = await fetchAndImportProviderDataSets(
-      providers,
-      inventory,
-      options,
-      fwssServiceAddress,
-      fetchFn
-    )
+    const dataSetImport = await fetchAndImportDataSets(options, fwssService.id, inventory, fetchFn)
     options.onProgress?.({ type: 'rows-imported', collection: 'data_sets', rows: dataSetImport.count })
+    options.onProgress?.({ type: 'piece-count-fetched', pieces: dataSetImport.pieceSlots })
 
-    const pieceCount = await fetchSubgraphPieceCount(options.subgraphUrl, fwssServiceAddress, fetchFn)
-    options.onProgress?.({ type: 'piece-count-fetched', pieces: pieceCount.pieces })
-
-    const pieceCountImported = await fetchAndImportDataSetRoots(dataSetImport.dataSets, inventory, options, fetchFn)
+    const pieceCountImported = await fetchAndImportRootSetIdChunks(dataSetImport.setIds, inventory, options, fetchFn)
     options.onProgress?.({ type: 'rows-imported', collection: 'pieces', rows: pieceCountImported })
 
     const subgraphMetadata = await fetchSubgraphMetadata(options.subgraphUrl, fetchFn)
@@ -167,64 +157,70 @@ export async function syncInventory(options: SyncInventoryOptions): Promise<Sync
   }
 }
 
-async function fetchAndImportProviderDataSets(
-  providers: SubgraphProvider[],
-  inventory: InventoryDb,
+async function fetchAndImportDataSets(
   options: SyncInventoryOptions,
-  fwssServiceAddress: string,
+  serviceId: string,
+  inventory: InventoryDb,
   fetchFn: GraphqlFetch
 ): Promise<{
   count: number
-  dataSets: SubgraphDataSet[]
+  setIds: string[]
+  pieceSlots: bigint
 }> {
-  const dataSets: SubgraphDataSet[] = []
-
-  for (const provider of providers) {
-    await fetchAndImportInventoryPages(
-      'data_sets',
-      options,
-      (idGt) => fetchProviderDataSetsPage(options.subgraphUrl, provider, fwssServiceAddress, idGt, fetchFn),
-      (page) => {
-        upsertDataSets(inventory, page)
-        dataSets.push(...page)
-      },
-      {
-        providerAddress: provider.address,
-        initialTotalRows: dataSets.length,
-      }
-    )
-  }
+  const setIds: string[] = []
+  let pieceSlots = 0n
+  const count = await fetchAndImportInventoryPages(
+    'data_sets',
+    options,
+    (idGt) => fetchDataSetsPage(options.subgraphUrl, serviceId, idGt, fetchFn),
+    (page) => {
+      upsertDataSets(inventory, page)
+      setIds.push(...page.map((dataSet) => dataSet.setId))
+      // totalRoots excludes removed pieces. nextPieceId is the monotonic slot count,
+      // so it matches the Root rows we import, including removed roots.
+      pieceSlots += page.reduce((total, dataSet) => total + BigInt(dataSet.nextPieceId), 0n)
+    }
+  )
 
   return {
-    count: dataSets.length,
-    dataSets,
+    count,
+    setIds: [...new Set(setIds)],
+    pieceSlots,
   }
 }
 
-async function fetchAndImportDataSetRoots(
-  dataSets: SubgraphDataSet[],
+async function fetchAndImportRootSetIdChunks(
+  setIds: string[],
   inventory: InventoryDb,
   options: SyncInventoryOptions,
   fetchFn: GraphqlFetch
 ): Promise<number> {
   let pieceCount = 0
 
-  for (const dataSet of dataSets) {
-    const dataSetPieceCount = await fetchAndImportInventoryPages(
+  for (const setIdChunk of chunkArray(setIds, rootSetIdChunkSize)) {
+    const chunkPieceCount = await fetchAndImportInventoryPages(
       'pieces',
       options,
-      (idGt) => fetchRootsPage(options.subgraphUrl, dataSet, idGt, fetchFn),
+      (idGt) => fetchRootsPage(options.subgraphUrl, setIdChunk, idGt, fetchFn),
       (page) => upsertPieces(inventory, page),
       {
-        dataSetId: dataSet.id,
-        dataSetSetId: dataSet.setId,
         initialTotalRows: pieceCount,
       }
     )
-    pieceCount += dataSetPieceCount
+    pieceCount += chunkPieceCount
   }
 
   return pieceCount
+}
+
+function chunkArray<TValue>(values: TValue[], chunkSize: number): TValue[][] {
+  const chunks: TValue[][] = []
+
+  for (let index = 0; index < values.length; index += chunkSize) {
+    chunks.push(values.slice(index, index + chunkSize))
+  }
+
+  return chunks
 }
 
 async function fetchAndImportInventoryPages<TRow extends { id: string }>(
@@ -233,9 +229,6 @@ async function fetchAndImportInventoryPages<TRow extends { id: string }>(
   fetchPage: (idGt: string) => Promise<TRow[]>,
   importPage: (page: TRow[]) => void,
   progressContext: {
-    providerAddress?: string
-    dataSetId?: string
-    dataSetSetId?: string
     initialTotalRows?: number
   } = {}
 ): Promise<number> {
@@ -257,9 +250,6 @@ async function fetchAndImportInventoryPages<TRow extends { id: string }>(
       rows: page.length,
       totalRows: (progressContext.initialTotalRows ?? 0) + rowCount,
       done,
-      ...(progressContext.providerAddress ? { providerAddress: progressContext.providerAddress } : {}),
-      ...(progressContext.dataSetId ? { dataSetId: progressContext.dataSetId } : {}),
-      ...(progressContext.dataSetSetId ? { dataSetSetId: progressContext.dataSetSetId } : {}),
     })
 
     if (done) {
@@ -276,9 +266,6 @@ async function fetchInventoryPages<TRow extends { id: string }>(
   options: SyncInventoryOptions,
   fetchPage: (idGt: string) => Promise<TRow[]>,
   progressContext: {
-    providerAddress?: string
-    dataSetId?: string
-    dataSetSetId?: string
     initialTotalRows?: number
   } = {}
 ): Promise<TRow[]> {
@@ -299,9 +286,6 @@ async function fetchInventoryPages<TRow extends { id: string }>(
       rows: page.length,
       totalRows: (progressContext.initialTotalRows ?? 0) + rows.length,
       done,
-      ...(progressContext.providerAddress ? { providerAddress: progressContext.providerAddress } : {}),
-      ...(progressContext.dataSetId ? { dataSetId: progressContext.dataSetId } : {}),
-      ...(progressContext.dataSetSetId ? { dataSetSetId: progressContext.dataSetSetId } : {}),
     })
 
     if (done) {

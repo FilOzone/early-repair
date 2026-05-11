@@ -9,7 +9,7 @@ import { and, count, eq } from 'drizzle-orm'
 import { initializeInventoryDb, openInventoryDb } from './db.ts'
 import { dataSets, pieces, providers, syncMetadata } from './db-schema.ts'
 import { upsertDataSets, upsertPieces, upsertProviders } from './inventory-import.ts'
-import { type SyncProgressEvent, syncInventory } from './sync.ts'
+import { rootSetIdChunkSize, type SyncProgressEvent, syncInventory } from './sync.ts'
 
 type MockGraphqlRequest = {
   operation: string
@@ -17,6 +17,7 @@ type MockGraphqlRequest = {
 }
 
 const testFwssServiceAddress = '0xfwss'
+const testFwssServiceId = 'service-1'
 
 describe('inventory sync', () => {
   it('paginates subgraph collections with id_gt and first 1000', async () => {
@@ -37,7 +38,8 @@ describe('inventory sync', () => {
           { providers: providerPage },
           { providers: [{ id: 'provider-1000', address: '0x1000000000000000000000000000000000000000' }] },
         ],
-        InventoryPieceCount: [{ service: { totalRoots: '0' } }],
+        InventoryServiceByAddress: [{ services: [{ id: testFwssServiceId, address: testFwssServiceAddress }] }],
+        InventoryDataSets: [{ dataSets: [] }],
         InventoryRoots: [{ roots: [] }],
         InventoryMetadata: [{ _meta: { block: { number: 123, hash: '0xabc' } } }],
       }),
@@ -72,10 +74,8 @@ describe('inventory sync', () => {
         'page-fetched',
         'rows-imported',
         'page-fetched',
-        'page-fetched',
         'rows-imported',
         'piece-count-fetched',
-        'page-fetched',
         'page-fetched',
         'rows-imported',
         'metadata-fetched',
@@ -88,48 +88,8 @@ describe('inventory sync', () => {
       events.filter((event) => event.type === 'page-fetched'),
       [
         { type: 'page-fetched', collection: 'providers', page: 1, idGt: '', rows: 2, totalRows: 2, done: true },
-        {
-          type: 'page-fetched',
-          collection: 'data_sets',
-          page: 1,
-          idGt: '',
-          rows: 1,
-          totalRows: 1,
-          done: true,
-          providerAddress: '0xprovider1',
-        },
-        {
-          type: 'page-fetched',
-          collection: 'data_sets',
-          page: 1,
-          idGt: '',
-          rows: 1,
-          totalRows: 2,
-          done: true,
-          providerAddress: '0xprovider2',
-        },
-        {
-          type: 'page-fetched',
-          collection: 'pieces',
-          page: 1,
-          idGt: '',
-          rows: 2,
-          totalRows: 2,
-          done: true,
-          dataSetId: 'dataset-1',
-          dataSetSetId: '1',
-        },
-        {
-          type: 'page-fetched',
-          collection: 'pieces',
-          page: 1,
-          idGt: '',
-          rows: 1,
-          totalRows: 3,
-          done: true,
-          dataSetId: 'dataset-2',
-          dataSetSetId: '2',
-        },
+        { type: 'page-fetched', collection: 'data_sets', page: 1, idGt: '', rows: 2, totalRows: 2, done: true },
+        { type: 'page-fetched', collection: 'pieces', page: 1, idGt: '', rows: 3, totalRows: 3, done: true },
       ]
     )
     assert.deepEqual(
@@ -157,7 +117,7 @@ describe('inventory sync', () => {
     )
   })
 
-  it('queries the expected piece count before fetching piece pages', async () => {
+  it('reports expected piece slots before fetching piece pages', async () => {
     const requests: MockGraphqlRequest[] = []
 
     await syncInventory({
@@ -170,33 +130,48 @@ describe('inventory sync', () => {
 
     assert.deepEqual(
       requests.map((request) => request.operation),
-      [
-        'InventoryProviders',
-        'InventoryProviderDataSets',
-        'InventoryProviderDataSets',
-        'InventoryPieceCount',
-        'InventoryRoots',
-        'InventoryRoots',
-        'InventoryMetadata',
-      ]
+      ['InventoryServiceByAddress', 'InventoryProviders', 'InventoryDataSets', 'InventoryRoots', 'InventoryMetadata']
     )
-    assert.deepEqual(
-      requests
-        .filter((request) => request.operation === 'InventoryProviderDataSets')
-        .map((request) => request.variables),
-      [
-        { first: 1000, idGt: '', providerId: 'provider-1', serviceId: testFwssServiceAddress },
-        { first: 1000, idGt: '', providerId: 'provider-2', serviceId: testFwssServiceAddress },
-      ]
-    )
-    assert.deepEqual(requests.find((request) => request.operation === 'InventoryPieceCount')?.variables, {
-      serviceId: testFwssServiceAddress,
+    assert.deepEqual(requests.find((request) => request.operation === 'InventoryServiceByAddress')?.variables, {
+      serviceAddress: testFwssServiceAddress,
     })
+    assert.deepEqual(requests.find((request) => request.operation === 'InventoryDataSets')?.variables, {
+      first: 1000,
+      idGt: '',
+      serviceId: testFwssServiceId,
+    })
+    assert.deepEqual(requests.find((request) => request.operation === 'InventoryRoots')?.variables, {
+      first: 1000,
+      idGt: '',
+      setIds: ['1', '2'],
+    })
+  })
+
+  it('fetches pieces in setId chunks instead of per dataset', async () => {
+    const requests: MockGraphqlRequest[] = []
+    const rowCount = rootSetIdChunkSize + 1
+
+    await syncInventory({
+      dbPath: tempInventoryPath(),
+      network: 'calibration',
+      subgraphUrl: 'https://example.test/subgraph',
+      fwssServiceAddress: testFwssServiceAddress,
+      fetchFn: mockGraphqlFetch(requests, largeSyncPages(rowCount)),
+    })
+
     assert.deepEqual(
       requests.filter((request) => request.operation === 'InventoryRoots').map((request) => request.variables),
       [
-        { first: 1000, idGt: '', dataSetId: 'dataset-1' },
-        { first: 1000, idGt: '', dataSetId: 'dataset-2' },
+        {
+          first: 1000,
+          idGt: '',
+          setIds: Array.from({ length: rootSetIdChunkSize }, (_, index) => String(index + 1)),
+        },
+        {
+          first: 1000,
+          idGt: '',
+          setIds: [String(rootSetIdChunkSize + 1)],
+        },
       ]
     )
   })
@@ -323,7 +298,14 @@ describe('inventory sync', () => {
     initializeInventoryDb(inventory)
     upsertProviders(inventory, [{ id: 'provider-1', address: '0xprovider1' }])
     upsertDataSets(inventory, [
-      { id: 'dataset-1', setId: '1', owner: { address: '0xprovider1' }, isActive: true, status: 'READY' },
+      {
+        id: 'dataset-1',
+        setId: '1',
+        nextPieceId: '2',
+        owner: { address: '0xprovider1' },
+        isActive: true,
+        status: 'READY',
+      },
     ])
 
     upsertPieces(inventory, [
@@ -407,12 +389,27 @@ function basicSyncPages(): Record<string, Array<Record<string, unknown>>> {
         ],
       },
     ],
-    InventoryProviderDataSets: [
+    InventoryServiceByAddress: [{ services: [{ id: testFwssServiceId, address: testFwssServiceAddress }] }],
+    InventoryDataSets: [
       {
-        dataSets: [{ id: 'dataset-1', setId: '1', isActive: true, status: 'READY' }],
-      },
-      {
-        dataSets: [{ id: 'dataset-2', setId: '2', isActive: true, status: 'READY' }],
+        dataSets: [
+          {
+            id: 'dataset-1',
+            setId: '1',
+            nextPieceId: '2',
+            owner: { address: '0xprovider1' },
+            isActive: true,
+            status: 'READY',
+          },
+          {
+            id: 'dataset-2',
+            setId: '2',
+            nextPieceId: '1',
+            owner: { address: '0xprovider2' },
+            isActive: true,
+            status: 'READY',
+          },
+        ],
       },
     ],
     InventoryRoots: [
@@ -420,15 +417,10 @@ function basicSyncPages(): Record<string, Array<Record<string, unknown>>> {
         roots: [
           { id: 'root-1-10', setId: '1', rootId: '10', cid: 'baga-cid-1', removed: false, proofSet: { setId: '1' } },
           { id: 'root-1-11', setId: '1', rootId: '11', cid: 'baga-cid-1', removed: false, proofSet: { setId: '1' } },
-        ],
-      },
-      {
-        roots: [
           { id: 'root-2-10', setId: '2', rootId: '10', cid: 'baga-cid-1', removed: false, proofSet: { setId: '2' } },
         ],
       },
     ],
-    InventoryPieceCount: [{ service: { totalRoots: '3' } }],
     InventoryMetadata: [{ _meta: { block: { number: 123, hash: '0xabc' } } }],
   }
 }
@@ -440,41 +432,42 @@ function largeSyncPages(rowCount: number): Record<string, Array<Record<string, u
         providers: [{ id: 'provider-1', address: '0xprovider1' }],
       },
     ],
-    InventoryProviderDataSets: [
+    InventoryServiceByAddress: [{ services: [{ id: testFwssServiceId, address: testFwssServiceAddress }] }],
+    InventoryDataSets: [
       ...chunkRows(
         Array.from({ length: rowCount }, (_, index) => ({
           id: `dataset-${index + 1}`,
           setId: String(index + 1),
+          nextPieceId: '1',
+          owner: { address: '0xprovider1' },
           isActive: true,
           status: 'READY',
         }))
       ).map((dataSets) => ({ dataSets })),
       { dataSets: [] },
     ],
-    InventoryPieceCount: [{ service: { totalRoots: String(rowCount) } }],
     InventoryRoots: [
-      ...Array.from({ length: rowCount }, (_, index) => ({
-        roots: [
-          {
-            id: `root-${index + 1}`,
-            setId: String(index + 1),
-            rootId: '1',
-            cid: `baga-cid-${index + 1}`,
-            removed: false,
-            proofSet: { setId: String(index + 1) },
-          },
-        ],
-      })),
+      ...chunkRows(
+        Array.from({ length: rowCount }, (_, index) => ({
+          id: `root-${index + 1}`,
+          setId: String(index + 1),
+          rootId: '1',
+          cid: `baga-cid-${index + 1}`,
+          removed: false,
+          proofSet: { setId: String(index + 1) },
+        })),
+        rootSetIdChunkSize
+      ).map((roots) => ({ roots })),
     ],
     InventoryMetadata: [{ _meta: { block: { number: 123, hash: '0xabc' } } }],
   }
 }
 
-function chunkRows<TRow>(rows: TRow[]): TRow[][] {
+function chunkRows<TRow>(rows: TRow[], chunkSize = 1000): TRow[][] {
   const chunks: TRow[][] = []
 
-  for (let index = 0; index < rows.length; index += 1000) {
-    chunks.push(rows.slice(index, index + 1000))
+  for (let index = 0; index < rows.length; index += chunkSize) {
+    chunks.push(rows.slice(index, index + chunkSize))
   }
 
   return chunks
@@ -505,8 +498,7 @@ function mockGraphqlFetch(
     const nextPage = nextPageByOperation.get(operation) ?? 0
     nextPageByOperation.set(operation, nextPage + 1)
 
-    const data =
-      pages[operation]?.[nextPage] ?? (operation === 'InventoryProviderDataSets' ? { dataSets: [] } : undefined)
+    const data = pages[operation]?.[nextPage]
 
     if (!data) {
       throw new Error(`mock fetch has no page ${nextPage} for ${operation}`)

@@ -8,11 +8,17 @@ export type SubgraphProvider = {
 export type SubgraphDataSet = {
   id: string
   setId: string
+  nextPieceId: string
   owner: {
     address: string
   }
   isActive: boolean
   status: string
+}
+
+export type SubgraphService = {
+  id: string
+  address: string
 }
 
 export type SubgraphRoot = {
@@ -33,10 +39,6 @@ export type SubgraphMetadata = {
   }
 }
 
-export type SubgraphPieceCount = {
-  pieces: bigint
-}
-
 export type GraphqlFetch = typeof fetch
 
 type GraphqlResponse<TData> = {
@@ -51,17 +53,16 @@ type PageVariables = {
   idGt: string
 }
 
-type ProviderDataSetsVariables = PageVariables & {
-  providerId: string
-  serviceId: string
+type ServiceAddressVariables = {
+  serviceAddress: string
 }
 
 type ServiceVariables = {
   serviceId: string
 }
 
-type DataSetRootsVariables = PageVariables & {
-  dataSetId: string
+type RootSetIdsVariables = PageVariables & {
+  setIds: string[]
 }
 
 const providersQuery = `#graphql
@@ -73,11 +74,24 @@ const providersQuery = `#graphql
   }
 `
 
-const providerDataSetsQuery = `#graphql
-  query InventoryProviderDataSets($first: Int!, $idGt: String!, $providerId: Bytes!, $serviceId: Bytes!) {
-    dataSets(first: $first, where: { id_gt: $idGt, owner: $providerId, listener: $serviceId }, orderBy: id, orderDirection: asc) {
+const serviceByAddressQuery = `#graphql
+  query InventoryServiceByAddress($serviceAddress: Bytes!) {
+    services(first: 1, where: { address: $serviceAddress }) {
+      id
+      address
+    }
+  }
+`
+
+const dataSetsQuery = `#graphql
+  query InventoryDataSets($first: Int!, $idGt: String!, $serviceId: Bytes!) {
+    dataSets(first: $first, where: { id_gt: $idGt, listener: $serviceId }, orderBy: id, orderDirection: asc) {
       id
       setId
+      nextPieceId
+      owner {
+        address
+      }
       isActive
       status
     }
@@ -85,8 +99,8 @@ const providerDataSetsQuery = `#graphql
 `
 
 const rootsQuery = `#graphql
-  query InventoryRoots($first: Int!, $idGt: String!, $dataSetId: Bytes!) {
-    roots(first: $first, where: { id_gt: $idGt, proofSet: $dataSetId }, orderBy: id, orderDirection: asc) {
+  query InventoryRoots($first: Int!, $idGt: String!, $setIds: [BigInt!]!) {
+    roots(first: $first, where: { id_gt: $idGt, setId_in: $setIds }, orderBy: id, orderDirection: asc) {
       id
       setId
       rootId
@@ -110,14 +124,6 @@ const metadataQuery = `#graphql
   }
 `
 
-const pieceCountQuery = `#graphql
-  query InventoryPieceCount($serviceId: Bytes!) {
-    service(id: $serviceId) {
-      totalRoots
-    }
-  }
-`
-
 export async function fetchProvidersPage(
   subgraphUrl: string,
   idGt: string,
@@ -133,49 +139,61 @@ export async function fetchProvidersPage(
   return response.providers
 }
 
-export async function fetchProviderDataSetsPage(
+export async function fetchServiceByAddress(
   subgraphUrl: string,
-  provider: SubgraphProvider,
+  serviceAddress: string,
+  fetchFn: GraphqlFetch = fetch
+): Promise<SubgraphService> {
+  const response = await postGraphql<{ services: SubgraphService[] }, ServiceAddressVariables>(
+    subgraphUrl,
+    serviceByAddressQuery,
+    { serviceAddress },
+    fetchFn
+  )
+  const service = response.services[0]
+
+  if (!service) {
+    throw new Error(`FWSS service ${serviceAddress} was not found in the subgraph`)
+  }
+
+  return service
+}
+
+export async function fetchDataSetsPage(
+  subgraphUrl: string,
   serviceId: string,
   idGt: string,
   fetchFn: GraphqlFetch = fetch
 ): Promise<SubgraphDataSet[]> {
-  const response = await postGraphql<
-    {
-      dataSets: Array<Omit<SubgraphDataSet, 'owner'>>
-    },
-    ProviderDataSetsVariables
-  >(
+  const response = await postGraphql<{ dataSets: SubgraphDataSet[] }, PageVariables & ServiceVariables>(
     subgraphUrl,
-    providerDataSetsQuery,
+    dataSetsQuery,
     {
       ...pageVariables(idGt),
-      providerId: provider.id,
       serviceId,
     },
     fetchFn
   )
 
-  return response.dataSets.map((dataSet) => ({
-    ...dataSet,
-    owner: {
-      address: provider.address,
-    },
-  }))
+  return response.dataSets
 }
 
 export async function fetchRootsPage(
   subgraphUrl: string,
-  dataSet: SubgraphDataSet,
+  setIds: string[],
   idGt: string,
   fetchFn: GraphqlFetch = fetch
 ): Promise<SubgraphRoot[]> {
-  const response = await postGraphql<{ roots: SubgraphRoot[] }, DataSetRootsVariables>(
+  if (setIds.length === 0) {
+    return []
+  }
+
+  const response = await postGraphql<{ roots: SubgraphRoot[] }, RootSetIdsVariables>(
     subgraphUrl,
     rootsQuery,
     {
       ...pageVariables(idGt),
-      dataSetId: dataSet.id,
+      setIds,
     },
     fetchFn
   )
@@ -195,23 +213,6 @@ export async function fetchSubgraphMetadata(
   )
 
   return response._meta
-}
-
-export async function fetchSubgraphPieceCount(
-  subgraphUrl: string,
-  serviceId: string,
-  fetchFn: GraphqlFetch = fetch
-): Promise<SubgraphPieceCount> {
-  const response = await postGraphql<{ service: { totalRoots: string | null } | null }, ServiceVariables>(
-    subgraphUrl,
-    pieceCountQuery,
-    { serviceId },
-    fetchFn
-  )
-
-  return {
-    pieces: BigInt(response.service?.totalRoots ?? 0),
-  }
 }
 
 export async function fetchAllPages<TRow extends { id: string }>(

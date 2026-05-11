@@ -88,14 +88,16 @@ function reportSyncProgress(event: SyncProgressEvent): void {
       break
     case 'page-fetched':
       process.stderr.write(
-        `Fetched ${event.collection}${event.providerAddress ? ` for ${event.providerAddress}` : ''}${event.dataSetSetId ? ` for dataset ${event.dataSetSetId}` : ''} page ${event.page} from id_gt="${event.idGt}": ${event.rows} rows (${event.totalRows} total).\n`
+        `Fetched ${event.collection} page ${event.page} from id_gt="${event.idGt}": ${event.rows} rows (${event.totalRows} total).\n`
       )
       break
     case 'rows-imported':
       process.stderr.write(`Imported ${event.rows} ${event.collection} rows.\n`)
       break
     case 'piece-count-fetched':
-      process.stderr.write(`Subgraph reports ${event.pieces.toLocaleString()} pieces to fetch.\n`)
+      process.stderr.write(
+        `Subgraph reports ${event.pieces.toLocaleString()} piece slots to fetch, including removed pieces.\n`
+      )
       break
     case 'metadata-fetched':
       process.stderr.write(
