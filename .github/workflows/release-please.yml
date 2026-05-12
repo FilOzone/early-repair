@@ -1,0 +1,48 @@
+name: release-please
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      paths_released: ${{ steps.release.outputs.paths_released }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          # PAT so release PRs trigger other workflows (auto-label, add-issues-and-prs-to-fs-project-board).
+          # This PAT has the permissions outlined in https://github.com/googleapis/release-please-action?tab=readme-ov-file#workflow-permissions.
+          # Using GITHUB_TOKEN suppresses follow-on workflow runs, which would mean release please PRs wouldn't get properly labeled and added to the project board.
+          token: ${{ secrets.FILOZZY_RELEASE_PLEASE_PAT }}
+          config-file: .github/release-please-config.json
+          manifest-file: .github/release-please-manifest.json
+  npm:
+    needs: release
+    if: ${{ needs.release.outputs.paths_released != '[]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      RELEASE_PATH: ${{ fromJson(needs.release.outputs.paths_released)[0] }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          registry-url: "https://registry.npmjs.org"
+      - run: pnpm install
+      - run: pnpm run lint
+      - run: pnpm run build
+      - run: pnpm publish --access=public
+        working-directory: ${{ env.RELEASE_PATH }}

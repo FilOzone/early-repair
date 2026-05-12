@@ -1,0 +1,127 @@
+{
+  "name": "@filoz/repair-cli",
+  "version": "0.0.0",
+  "description": "Early repair for faulty service providers and datasets",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FilOzone/early-repair.git"
+  },
+  "keywords": [
+    "filecoin",
+    "synapse",
+    "filecoin pay",
+    "filecoin onchain cloud",
+    "web3"
+  ],
+  "author": "Hugo Dias <hugomrdias@gmail.com>",
+  "license": "Apache-2.0 OR MIT",
+  "bugs": {
+    "url": "https://github.com/FilOzone/early-repair/issues"
+  },
+  "homepage": "https://github.com/FilOzone/early-repair/tree/main/packages/repair-cli",
+  "type": "module",
+  "main": "dist/src/cli.js",
+  "module": "dist/src/cli.js",
+  "types": "dist/src/cli.d.ts",
+  "bin": {
+    "repair": "./dist/cli.js",
+    "repair.src": "./src/cli.ts"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/src/cli.d.ts",
+      "default": "./dist/src/cli.js"
+    }
+  },
+  "files": [
+    "src",
+    "dist/src",
+    "dist/src/**/*.d.ts",
+    "dist/src/**/*.d.ts.map"
+  ],
+  "scripts": {
+    "build": "wireit",
+    "test": "wireit",
+    "test:node": "wireit",
+    "test:browser": "wireit",
+    "lint": "wireit",
+    "lint:fix": "biome check --fix .",
+    "update:msw": "pnpx msw init test/mocks/ --save"
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc --build --pretty",
+      "clean": "if-file-deleted",
+      "files": [
+        "src/**/*.ts",
+        "test/**/*.ts",
+        "tsconfig.json"
+      ],
+      "output": [
+        "dist/**"
+      ]
+    },
+    "test": {
+      "command": "pnpm run test:node && pnpm run test:browser",
+      "files": [
+        "src/**/*.ts",
+        "test/**/*.ts"
+      ],
+      "output": [],
+      "dependencies": [
+        "lint"
+      ]
+    },
+    "test:node": {
+      "command": "playwright-test \"test/**/*.test.ts\" --mode node",
+      "files": [
+        "src/**/*.ts",
+        "test/**/*.ts"
+      ],
+      "output": []
+    },
+    "test:browser": {
+      "command": "playwright-test \"test/**/*.test.ts\" --assets ./test/mocks",
+      "files": [
+        "src/**/*.ts",
+        "test/**/*.ts"
+      ],
+      "output": []
+    },
+    "lint": {
+      "command": "biome check .",
+      "files": [
+        "src/**/*.ts",
+        "test/**/*.ts",
+        "../../biome.json"
+      ],
+      "output": [],
+      "dependencies": [
+        "build"
+      ]
+    }
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@types/assert": "^1.5.11",
+    "@types/mocha": "catalog:",
+    "@types/node": "catalog:",
+    "assert": "^2.1.0",
+    "mocha": "catalog:",
+    "msw": "catalog:",
+    "playwright-test": "^14.1.12",
+    "type-fest": "^5.4.3",
+    "typescript": "catalog:",
+    "viem": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "msw": {
+    "workerDirectory": [
+      "test/mocks"
+    ]
+  }
+}

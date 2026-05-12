@@ -1,0 +1,35 @@
+{
+  "name": "early-repair",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Early repair for faulty service providers and datasets",
+  "license": "Apache-2.0 OR MIT",
+  "scripts": {
+    "preinstall": "pnpx only-allow pnpm",
+    "build": "pnpm -r --filter='./packages/*' --if-present run build",
+    "lint": "pnpm -r --if-present run lint",
+    "lint:fix": "biome check --fix .",
+    "test": "pnpm -r --filter='./packages/*' --if-present run test",
+    "check:repo": "pnpx sherif@latest -r root-package-manager-field",
+    "update:msw": "pnpm -r --filter='./packages/*' --if-present run update:msw",
+    "clean": "rm -rf node_modules pnpm-lock.yaml package-lock.json packages/*/{.wireit,pnpm-lock.yaml,package-lock.json,dist,node_modules} apps/*/{.wireit,pnpm-lock.yaml,package-lock.json,dist,node_modules}",
+    "clean:cache": "rm -rf packages/*/{.wireit,dist} apps/*/{.wireit,dist}"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "typescript": "catalog:",
+    "wireit": "^0.14.12"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.0.8",
+      "onFail": "download"
+    },
+    "runtime": {
+      "name": "node",
+      "version": "^24.14.0",
+      "onFail": "download"
+    }
+  }
+}
