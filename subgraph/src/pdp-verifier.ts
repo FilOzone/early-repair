@@ -1,5 +1,5 @@
 import { BigInt } from "@graphprotocol/graph-ts";
-import { DataSetEmpty, PiecesRemoved } from "../generated/PDPVerifier/PDPVerifier";
+import { DataSetDeleted, PiecesRemoved } from "../generated/PDPVerifier/PDPVerifier";
 import { DataSet, Piece, PieceReplica } from "../generated/schema";
 
 function dataSetEntityId(dataSetId: BigInt): string {
@@ -53,14 +53,14 @@ export function handlePiecesRemoved(event: PiecesRemoved): void {
   dataSet.save();
 }
 
-export function handleDataSetEmpty(event: DataSetEmpty): void {
+export function handleDataSetDeleted(event: DataSetDeleted): void {
   let dataSet = DataSet.load(dataSetEntityId(event.params.setId));
   if (dataSet == null) {
     return;
   }
 
-  dataSet.activePieces = BigInt.zero();
-  dataSet.isEmpty = true;
+  dataSet.isDeleted = true;
+  dataSet.isActive = false;
   dataSet.updatedAt = event.block.timestamp;
   dataSet.updatedAtBlock = event.block.number;
   dataSet.save();

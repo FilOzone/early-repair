@@ -56,7 +56,10 @@ function ensureDataSet(dataSetId: BigInt): DataSet {
   dataSet.metadataValues = [];
   dataSet.source = "";
   dataSet.withCDN = false;
-  dataSet.isActive = true;
+  dataSet.withIPFSIndexing = false;
+  dataSet.initialized = false;
+  dataSet.isActive = false;
+  dataSet.isDeleted = false;
   dataSet.pdpPaymentTerminated = false;
   dataSet.pdpEndEpoch = BigInt.zero();
   dataSet.totalPieces = BigInt.zero();
@@ -83,7 +86,10 @@ export function handleDataSetCreated(event: DataSetCreated): void {
   dataSet.metadataValues = event.params.metadataValues;
   dataSet.source = metadataValue(event.params.metadataKeys, event.params.metadataValues, "source");
   dataSet.withCDN = metadataHasKey(event.params.metadataKeys, "withCDN");
+  dataSet.withIPFSIndexing = metadataHasKey(event.params.metadataKeys, "withIPFSIndexing");
+  dataSet.initialized = true;
   dataSet.isActive = true;
+  dataSet.isDeleted = false;
   dataSet.createdAt = event.block.timestamp;
   dataSet.updatedAt = event.block.timestamp;
   dataSet.createdAtBlock = event.block.number;
@@ -101,7 +107,6 @@ export function handlePieceAdded(event: PieceAdded): void {
   if (piece == null) {
     piece = new Piece(cidHex);
     piece.cid = cid;
-    piece.cidHex = cidHex;
     piece.rawSize = rawSize;
     piece.replicaCount = BigInt.zero();
     piece.activeReplicaCount = BigInt.zero();
@@ -119,9 +124,9 @@ export function handlePieceAdded(event: PieceAdded): void {
   replica.piece = piece.id;
   replica.dataSet = dataSet.id;
   replica.dataSetId = event.params.dataSetId;
+  replica.providerId = dataSet.providerId;
   replica.pieceId = event.params.pieceId;
   replica.cid = cid;
-  replica.cidHex = cidHex;
   replica.rawSize = rawSize;
   replica.metadataKeys = event.params.keys;
   replica.metadataValues = event.params.values;

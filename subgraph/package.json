@@ -1,6 +1,6 @@
 {
   "name": "early-repair-subgraph",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "license": "Apache-2.0 OR MIT",
   "scripts": {
@@ -13,8 +13,8 @@
     "codegen": "pnpm run codegen:mainnet",
     "build": "pnpm run build:mainnet",
     "goldsky:login": "pnpm exec goldsky login",
-    "deploy:mainnet": "pnpm run prepare:mainnet && pnpm run codegen && pnpm run build && pnpm exec goldsky subgraph deploy early-repair/mainnet_0.2.0 --path ./",
-    "deploy:calibration": "pnpm run prepare:calibration && pnpm run codegen:calibration && pnpm run build:calibration && pnpm exec goldsky subgraph deploy early-repair/calibration_0.2.0 --path ./"
+    "deploy:mainnet": "pnpm run prepare:mainnet && pnpm run codegen && pnpm run build && pnpm exec goldsky subgraph deploy early-repair/mainnet_0.3.0 --path ./",
+    "deploy:calibration": "pnpm run prepare:calibration && pnpm run codegen:calibration && pnpm run build:calibration && pnpm exec goldsky subgraph deploy early-repair/calibration_0.3.0 --path ./"
   },
   "dependencies": {
     "@graphprotocol/graph-cli": "^0.97.1",

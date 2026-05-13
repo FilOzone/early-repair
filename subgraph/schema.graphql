@@ -12,7 +12,10 @@ type DataSet @entity(immutable: false) {
   metadataValues: [String!]!
   source: String!
   withCDN: Boolean!
+  withIPFSIndexing: Boolean!
+  initialized: Boolean!
   isActive: Boolean!
+  isDeleted: Boolean!
   pdpPaymentTerminated: Boolean!
   pdpEndEpoch: BigInt!
   totalPieces: BigInt!
@@ -28,7 +31,6 @@ type DataSet @entity(immutable: false) {
 type Piece @entity(immutable: false) {
   id: ID!
   cid: Bytes!
-  cidHex: String!
   rawSize: BigInt!
   replicaCount: BigInt!
   activeReplicaCount: BigInt!
@@ -44,9 +46,9 @@ type PieceReplica @entity(immutable: false) {
   piece: Piece!
   dataSet: DataSet!
   dataSetId: BigInt!
+  providerId: BigInt!
   pieceId: BigInt!
   cid: Bytes!
-  cidHex: String!
   rawSize: BigInt!
   metadataKeys: [String!]!
   metadataValues: [String!]!
