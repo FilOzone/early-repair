@@ -1,7 +1,6 @@
 import { Address, BigInt } from "@graphprotocol/graph-ts";
 import {
   DataSetCreated,
-  DataSetServiceProviderChanged,
   PDPPaymentTerminated,
   PieceAdded,
   ServiceTerminated,
@@ -25,6 +24,16 @@ function metadataValue(keys: string[], values: string[], key: string): string {
   }
 
   return "";
+}
+
+function metadataHasKey(keys: string[], key: string): boolean {
+  for (let i = 0; i < keys.length; i++) {
+    if (keys[i] == key) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function ensureDataSet(dataSetId: BigInt): DataSet {
@@ -51,6 +60,8 @@ function ensureDataSet(dataSetId: BigInt): DataSet {
   dataSet.pdpPaymentTerminated = false;
   dataSet.pdpEndEpoch = BigInt.zero();
   dataSet.totalPieces = BigInt.zero();
+  dataSet.activePieces = BigInt.zero();
+  dataSet.isEmpty = false;
   dataSet.createdAt = BigInt.zero();
   dataSet.updatedAt = BigInt.zero();
   dataSet.createdAtBlock = BigInt.zero();
@@ -71,19 +82,11 @@ export function handleDataSetCreated(event: DataSetCreated): void {
   dataSet.metadataKeys = event.params.metadataKeys;
   dataSet.metadataValues = event.params.metadataValues;
   dataSet.source = metadataValue(event.params.metadataKeys, event.params.metadataValues, "source");
-  dataSet.withCDN = metadataValue(event.params.metadataKeys, event.params.metadataValues, "withCDN") != "";
+  dataSet.withCDN = metadataHasKey(event.params.metadataKeys, "withCDN");
   dataSet.isActive = true;
   dataSet.createdAt = event.block.timestamp;
   dataSet.updatedAt = event.block.timestamp;
   dataSet.createdAtBlock = event.block.number;
-  dataSet.updatedAtBlock = event.block.number;
-  dataSet.save();
-}
-
-export function handleDataSetServiceProviderChanged(event: DataSetServiceProviderChanged): void {
-  let dataSet = ensureDataSet(event.params.dataSetId);
-  dataSet.serviceProvider = event.params.newServiceProvider;
-  dataSet.updatedAt = event.block.timestamp;
   dataSet.updatedAtBlock = event.block.number;
   dataSet.save();
 }
@@ -101,11 +104,13 @@ export function handlePieceAdded(event: PieceAdded): void {
     piece.cidHex = cidHex;
     piece.rawSize = rawSize;
     piece.replicaCount = BigInt.zero();
+    piece.activeReplicaCount = BigInt.zero();
     piece.firstSeenAt = event.block.timestamp;
     piece.firstSeenAtBlock = event.block.number;
   }
 
   piece.replicaCount = piece.replicaCount.plus(BigInt.fromI32(1));
+  piece.activeReplicaCount = piece.activeReplicaCount.plus(BigInt.fromI32(1));
   piece.lastSeenAt = event.block.timestamp;
   piece.lastSeenAtBlock = event.block.number;
   piece.save();
@@ -124,9 +129,12 @@ export function handlePieceAdded(event: PieceAdded): void {
   replica.addedAtBlock = event.block.number;
   replica.transactionHash = event.transaction.hash;
   replica.logIndex = event.logIndex;
+  replica.removed = false;
   replica.save();
 
   dataSet.totalPieces = dataSet.totalPieces.plus(BigInt.fromI32(1));
+  dataSet.activePieces = dataSet.activePieces.plus(BigInt.fromI32(1));
+  dataSet.isEmpty = false;
   dataSet.updatedAt = event.block.timestamp;
   dataSet.updatedAtBlock = event.block.number;
   dataSet.save();

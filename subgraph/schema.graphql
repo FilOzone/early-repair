@@ -16,6 +16,8 @@ type DataSet @entity(immutable: false) {
   pdpPaymentTerminated: Boolean!
   pdpEndEpoch: BigInt!
   totalPieces: BigInt!
+  activePieces: BigInt!
+  isEmpty: Boolean!
   createdAt: BigInt!
   updatedAt: BigInt!
   createdAtBlock: BigInt!
@@ -29,6 +31,7 @@ type Piece @entity(immutable: false) {
   cidHex: String!
   rawSize: BigInt!
   replicaCount: BigInt!
+  activeReplicaCount: BigInt!
   firstSeenAt: BigInt!
   lastSeenAt: BigInt!
   firstSeenAtBlock: BigInt!
@@ -36,7 +39,7 @@ type Piece @entity(immutable: false) {
   replicas: [PieceReplica!]! @derivedFrom(field: "piece")
 }
 
-type PieceReplica @entity(immutable: true) {
+type PieceReplica @entity(immutable: false) {
   id: ID!
   piece: Piece!
   dataSet: DataSet!
@@ -51,4 +54,8 @@ type PieceReplica @entity(immutable: true) {
   addedAtBlock: BigInt!
   transactionHash: Bytes!
   logIndex: BigInt!
+  removed: Boolean!
+  removedAt: BigInt
+  removedAtBlock: BigInt
+  removedTransactionHash: Bytes
 }

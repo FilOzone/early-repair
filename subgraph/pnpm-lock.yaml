@@ -14,6 +14,10 @@ importers:
       '@graphprotocol/graph-ts':
         specifier: ^0.38.1
         version: 0.38.2
+    devDependencies:
+      '@goldskycom/cli':
+        specifier: ^13.3.4
+        version: 13.3.4
 
 packages:
 
@@ -40,6 +44,10 @@ packages:
 
   '@float-capital/float-subgraph-uncrashable@0.0.0-internal-testing.5':
     resolution: {integrity: sha512-yZ0H5e3EpAYKokX/AbtplzlvSxEJY7ZfpvQyDzyODkks0hakAAlDG6fQu1SlDJMWorY7bbq1j7fCiFeTWci6TA==}
+    hasBin: true
+
+  '@goldskycom/cli@13.3.4':
+    resolution: {integrity: sha512-zqpClvZbfixYEd1UmozUBi0MZTpBXCGQcRgl8Y6Xq75LlxSb06gPqzO8pGpSeKF/OpR43i8UlNjWqHTmm941MQ==}
     hasBin: true
 
   '@graphprotocol/graph-cli@0.97.1':
@@ -1627,6 +1635,8 @@ snapshots:
       graphql: 16.11.0
       graphql-import-node: 0.0.5(graphql@16.11.0)
       js-yaml: 4.1.0
+
+  '@goldskycom/cli@13.3.4': {}
 
   '@graphprotocol/graph-cli@0.97.1(typescript@6.0.3)(zod@3.25.76)':
     dependencies:

@@ -10,7 +10,7 @@ dataSources:
     source:
       address: "0x02925630df557F957f70E112bA06e50965417CA0"
       abi: FilecoinWarmStorageService
-      startBlock: 3155000
+      startBlock: 3141266
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -25,8 +25,6 @@ dataSources:
       eventHandlers:
         - event: DataSetCreated(indexed uint256,indexed uint256,uint256,uint256,uint256,address,address,address,string[],string[])
           handler: handleDataSetCreated
-        - event: DataSetServiceProviderChanged(indexed uint256,indexed address,indexed address)
-          handler: handleDataSetServiceProviderChanged
         - event: PieceAdded(indexed uint256,indexed uint256,(bytes),string[],string[])
           handler: handlePieceAdded
         - event: PDPPaymentTerminated(indexed uint256,uint256,uint256)
@@ -34,3 +32,27 @@ dataSources:
         - event: ServiceTerminated(indexed address,indexed uint256,uint256,uint256,uint256)
           handler: handleServiceTerminated
       file: ./src/filecoin-warm-storage-service.ts
+  - kind: ethereum
+    name: PDPVerifier
+    network: filecoin-testnet
+    source:
+      address: "0x85e366Cf9DD2c0aE37E963d9556F5f4718d6417C"
+      abi: PDPVerifier
+      startBlock: 3141266
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - DataSet
+        - Piece
+        - PieceReplica
+      abis:
+        - name: PDPVerifier
+          file: ./abi/PDPVerifier.abi.json
+      eventHandlers:
+        - event: PiecesRemoved(indexed uint256,uint256[])
+          handler: handlePiecesRemoved
+        - event: DataSetEmpty(indexed uint256)
+          handler: handleDataSetEmpty
+      file: ./src/pdp-verifier.ts
