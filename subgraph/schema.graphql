@@ -1,0 +1,54 @@
+type DataSet @entity(immutable: false) {
+  id: ID!
+  dataSetId: BigInt!
+  providerId: BigInt!
+  payer: Bytes!
+  payee: Bytes!
+  serviceProvider: Bytes!
+  pdpRailId: BigInt!
+  cacheMissRailId: BigInt!
+  cdnRailId: BigInt!
+  metadataKeys: [String!]!
+  metadataValues: [String!]!
+  source: String!
+  withCDN: Boolean!
+  isActive: Boolean!
+  pdpPaymentTerminated: Boolean!
+  pdpEndEpoch: BigInt!
+  totalPieces: BigInt!
+  createdAt: BigInt!
+  updatedAt: BigInt!
+  createdAtBlock: BigInt!
+  updatedAtBlock: BigInt!
+  pieces: [PieceReplica!]! @derivedFrom(field: "dataSet")
+}
+
+type Piece @entity(immutable: false) {
+  id: ID!
+  cid: Bytes!
+  cidHex: String!
+  rawSize: BigInt!
+  replicaCount: BigInt!
+  firstSeenAt: BigInt!
+  lastSeenAt: BigInt!
+  firstSeenAtBlock: BigInt!
+  lastSeenAtBlock: BigInt!
+  replicas: [PieceReplica!]! @derivedFrom(field: "piece")
+}
+
+type PieceReplica @entity(immutable: true) {
+  id: ID!
+  piece: Piece!
+  dataSet: DataSet!
+  dataSetId: BigInt!
+  pieceId: BigInt!
+  cid: Bytes!
+  cidHex: String!
+  rawSize: BigInt!
+  metadataKeys: [String!]!
+  metadataValues: [String!]!
+  addedAt: BigInt!
+  addedAtBlock: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
