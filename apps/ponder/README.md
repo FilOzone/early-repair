@@ -26,7 +26,18 @@ pnpm --filter @filoz/repair-ponder dev:calibnet
 ```
 
 Set `DATABASE_URL` and `RPC_URL` to override the local defaults.
-Set `PONDER_STRICT_ENV=true` to require both variables, which is recommended for deployments.
+
+Environment variables:
+
+| Variable | Values | Default | Strict mode |
+| --- | --- | --- | --- |
+| `PONDER_NETWORK` | `mainnet`, `calibnet` | `mainnet` | Required |
+| `DATABASE_URL` | PostgreSQL connection string | `postgres://ponder:ponder@localhost:17825/ponder` | Required |
+| `RPC_URL` | Filecoin JSON-RPC URL | `http://localhost:1234/rpc/v1` | Required |
+| `PONDER_STRICT_ENV` | `true`, `1` | unset | Enables strict mode |
+
+Set `PONDER_STRICT_ENV=true` to require `PONDER_NETWORK`, `DATABASE_URL`, and `RPC_URL`, which is recommended for
+deployments.
 
 ## Networks
 

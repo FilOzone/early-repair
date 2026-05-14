@@ -6,8 +6,11 @@ import { rpcTransport } from './src/rpc.ts'
 const DEFAULT_DATABASE_URL = 'postgres://ponder:ponder@localhost:17825/ponder'
 const DEFAULT_RPC_URL = 'http://localhost:1234/rpc/v1'
 
-function parseNetwork(value: string | undefined): NetworkName {
-  if (value === undefined || value === '') return 'mainnet'
+function parseNetwork(value: string | undefined, strict: boolean): NetworkName {
+  if (value === undefined || value === '') {
+    if (strict) throw new Error('PONDER_NETWORK is required when PONDER_STRICT_ENV=true')
+    return 'mainnet'
+  }
   if (value === 'mainnet' || value === 'calibnet') return value
   throw new Error(`Unsupported PONDER_NETWORK "${value}". Expected "mainnet" or "calibnet".`)
 }
@@ -23,9 +26,9 @@ function env(name: string, fallback: string, strict: boolean): string {
   return fallback
 }
 
-const networkName = parseNetwork(process.env.PONDER_NETWORK)
-const network = NETWORKS[networkName]
 const strictEnv = parseStrictEnv(process.env.PONDER_STRICT_ENV)
+const networkName = parseNetwork(process.env.PONDER_NETWORK, strictEnv)
+const network = NETWORKS[networkName]
 
 export default createConfig({
   database: {
