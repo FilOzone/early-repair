@@ -5,13 +5,13 @@
   "description": "Ponder indexer for FOC early repair inventory",
   "type": "module",
   "scripts": {
-    "dev:calibnet": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.calibnet.ts ponder.config.ts && ponder dev",
-    "dev:mainnet": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.mainnet.ts ponder.config.ts && ponder dev",
-    "start:calibnet": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.calibnet.ts ponder.config.ts && ponder start",
-    "start:mainnet": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.mainnet.ts ponder.config.ts && ponder start",
-    "codegen:calibnet": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.calibnet.ts ponder.config.ts && RPC_URL=http://localhost:1235/rpc/v1 DATABASE_URL=postgres://noop:noop@localhost:5432/noop ponder codegen; rc=$?; rm -f ponder.config.ts; exit $rc",
-    "codegen:mainnet": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.mainnet.ts ponder.config.ts && RPC_URL=http://localhost:1234/rpc/v1 DATABASE_URL=postgres://noop:noop@localhost:5432/noop ponder codegen; rc=$?; rm -f ponder.config.ts; exit $rc",
-    "typecheck": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.mainnet.ts ponder.config.ts && RPC_URL=http://localhost:1234/rpc/v1 DATABASE_URL=postgres://noop:noop@localhost:5432/noop ponder codegen && tsc --noEmit; rc=$?; rm -f ponder.config.ts; exit $rc",
+    "dev:calibnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=calibnet ponder dev",
+    "dev:mainnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=mainnet ponder dev",
+    "start:calibnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=calibnet ponder start",
+    "start:mainnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=mainnet ponder start",
+    "codegen:calibnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=calibnet RPC_URL=http://localhost:1235/rpc/v1 DATABASE_URL=postgres://noop:noop@localhost:5432/noop ponder codegen",
+    "codegen:mainnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=mainnet RPC_URL=http://localhost:1234/rpc/v1 DATABASE_URL=postgres://noop:noop@localhost:5432/noop ponder codegen",
+    "typecheck": "pnpm run codegen:mainnet && tsc --noEmit",
     "lint": "biome check ."
   },
   "dependencies": {

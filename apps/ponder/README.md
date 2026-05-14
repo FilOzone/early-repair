@@ -26,6 +26,7 @@ pnpm --filter @filoz/repair-ponder dev:calibnet
 ```
 
 Set `DATABASE_URL` and `RPC_URL` to override the local defaults.
+Set `PONDER_STRICT_ENV=true` to require both variables, which is recommended for deployments.
 
 ## Networks
 

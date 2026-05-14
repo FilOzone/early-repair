@@ -13,3 +13,19 @@ export const CALIBNET = {
   SP_REGISTRY: '0x839e5c9988e4e9977d40708d0094103c0839Ac9D',
   START_BLOCK: 3_141_266,
 } as const
+
+export type NetworkName = 'mainnet' | 'calibnet'
+
+export const NETWORKS = {
+  mainnet: MAINNET,
+  calibnet: CALIBNET,
+} as const satisfies Record<
+  NetworkName,
+  {
+    CHAIN_ID: number
+    FWSS: `0x${string}`
+    PDP_VERIFIER: `0x${string}`
+    SP_REGISTRY: `0x${string}`
+    START_BLOCK: number
+  }
+>
