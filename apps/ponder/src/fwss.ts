@@ -22,7 +22,6 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
       metadata,
       pdpEndEpoch: 0n,
       deleted: false,
-      empty: false,
       createdAtBlock: event.block.number,
       ...block,
     })

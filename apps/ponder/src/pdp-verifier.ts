@@ -28,14 +28,3 @@ ponder.on('PDPVerifier:DataSetDeleted', async ({ event, context }) => {
     ...eventBlock(event),
   })
 })
-
-ponder.on('PDPVerifier:DataSetEmpty', async ({ event, context }) => {
-  const { setId } = event.args as { setId: bigint }
-  const existing = await context.db.find(dataSets, { dataSetId: setId })
-  if (!existing) return
-
-  await context.db.update(dataSets, { dataSetId: setId }).set({
-    empty: true,
-    ...eventBlock(event),
-  })
-})

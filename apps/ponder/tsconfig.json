@@ -15,5 +15,5 @@
     "noImplicitOverride": true,
     "skipLibCheck": true
   },
-  "include": ["src", "ponder.config.ts", "ponder.schema.ts", "ponder-env.d.ts"]
+  "include": ["src", "test", "ponder.config.ts", "ponder.schema.ts", "ponder-env.d.ts"]
 }

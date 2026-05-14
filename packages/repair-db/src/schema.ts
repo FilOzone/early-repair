@@ -15,9 +15,7 @@ export const providers = pgTable(
     createdAtBlock: bigint('created_at_block', { mode: 'bigint' }),
     updatedAtBlock: bigint('updated_at_block', { mode: 'bigint' }).notNull(),
   },
-  (table) => ({
-    providerAddressIdx: index('providers_provider_address_idx').on(table.providerAddress),
-  })
+  (table) => [index('providers_provider_address_idx').on(table.providerAddress)]
 )
 
 export const dataSets = pgTable(
@@ -28,13 +26,10 @@ export const dataSets = pgTable(
     metadata: jsonb('metadata').$type<JsonRecord | null>(),
     pdpEndEpoch: bigint('pdp_end_epoch', { mode: 'bigint' }).notNull(),
     deleted: boolean('deleted').notNull(),
-    empty: boolean('empty').notNull(),
     createdAtBlock: bigint('created_at_block', { mode: 'bigint' }).notNull(),
     updatedAtBlock: bigint('updated_at_block', { mode: 'bigint' }).notNull(),
   },
-  (table) => ({
-    providerIdIdx: index('data_sets_provider_id_idx').on(table.providerId),
-  })
+  (table) => [index('data_sets_provider_id_idx').on(table.providerId)]
 )
 
 export const pieces = pgTable(
@@ -50,10 +45,7 @@ export const pieces = pgTable(
     removedAtBlock: bigint('removed_at_block', { mode: 'bigint' }),
     updatedAtBlock: bigint('updated_at_block', { mode: 'bigint' }).notNull(),
   },
-  (table) => ({
-    pk: primaryKey({ columns: [table.dataSetId, table.pieceId] }),
-    cidIdx: index('pieces_cid_idx').on(table.cid),
-  })
+  (table) => [primaryKey({ columns: [table.dataSetId, table.pieceId] }), index('pieces_cid_idx').on(table.cid)]
 )
 
 export const tables = {
