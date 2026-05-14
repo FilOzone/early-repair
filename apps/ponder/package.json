@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@filoz/repair-db": "workspace:*",
+    "hono": "^4.12.18",
     "multiformats": "^13",
     "ponder": "npm:@rvagg/ponder@^0.16.6",
     "viem": "catalog:"

@@ -57,6 +57,9 @@ importers:
       '@filoz/repair-db':
         specifier: workspace:*
         version: link:../../packages/repair-db
+      hono:
+        specifier: ^4.12.18
+        version: 4.12.18
       multiformats:
         specifier: ^13
         version: 13.4.2
