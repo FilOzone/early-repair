@@ -2,7 +2,7 @@ name: Ponder Image
 
 on:
   push:
-    branches: [master]
+    branches: [main]
     tags: ["v*"]
     paths:
       - ".github/workflows/ponder-image.yml"
