@@ -5,6 +5,7 @@
   "description": "Ponder indexer for FOC early repair inventory",
   "type": "module",
   "scripts": {
+    "start": "ponder start",
     "dev:calibnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=calibnet ponder dev",
     "dev:mainnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=mainnet ponder dev",
     "start:calibnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=calibnet ponder start",
