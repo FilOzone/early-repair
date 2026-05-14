@@ -1,0 +1,28 @@
+{
+  "name": "@filoz/repair-ponder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Ponder indexer for FOC early repair inventory",
+  "type": "module",
+  "scripts": {
+    "dev:calibnet": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.calibnet.ts ponder.config.ts && ponder dev",
+    "dev:mainnet": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.mainnet.ts ponder.config.ts && ponder dev",
+    "start:calibnet": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.calibnet.ts ponder.config.ts && ponder start",
+    "start:mainnet": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.mainnet.ts ponder.config.ts && ponder start",
+    "codegen:calibnet": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.calibnet.ts ponder.config.ts && RPC_URL=http://localhost:1235/rpc/v1 DATABASE_URL=postgres://noop:noop@localhost:5432/noop ponder codegen; rc=$?; rm -f ponder.config.ts; exit $rc",
+    "codegen:mainnet": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.mainnet.ts ponder.config.ts && RPC_URL=http://localhost:1234/rpc/v1 DATABASE_URL=postgres://noop:noop@localhost:5432/noop ponder codegen; rc=$?; rm -f ponder.config.ts; exit $rc",
+    "typecheck": "pnpm --filter @filoz/repair-db build && ln -sf ponder.config.mainnet.ts ponder.config.ts && RPC_URL=http://localhost:1234/rpc/v1 DATABASE_URL=postgres://noop:noop@localhost:5432/noop ponder codegen && tsc --noEmit; rc=$?; rm -f ponder.config.ts; exit $rc",
+    "lint": "biome check ."
+  },
+  "dependencies": {
+    "@filoz/repair-db": "workspace:*",
+    "multiformats": "^13",
+    "ponder": "npm:@rvagg/ponder@^0.16.6",
+    "viem": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

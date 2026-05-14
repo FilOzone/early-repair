@@ -1,0 +1,41 @@
+{
+  "name": "@filoz/repair-db",
+  "version": "0.0.0",
+  "description": "Shared database schema for FOC early repair inventory",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FilOzone/early-repair.git"
+  },
+  "license": "Apache-2.0 OR MIT",
+  "type": "module",
+  "main": "dist/src/index.js",
+  "module": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "files": [
+    "src",
+    "dist/src",
+    "dist/src/**/*.d.ts",
+    "dist/src/**/*.d.ts.map"
+  ],
+  "scripts": {
+    "build": "tsc --build --pretty",
+    "lint": "biome check ."
+  },
+  "dependencies": {
+    "drizzle-orm": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "typescript": "catalog:"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
