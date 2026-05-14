@@ -1,0 +1,31 @@
+{
+  "name": "@filoz/repair-ponder",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Ponder indexer for FOC early repair inventory",
+  "type": "module",
+  "scripts": {
+    "start": "ponder start",
+    "dev:calibnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=calibnet ponder dev",
+    "dev:mainnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=mainnet ponder dev",
+    "start:calibnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=calibnet ponder start",
+    "start:mainnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=mainnet ponder start",
+    "codegen:calibnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=calibnet RPC_URL=http://localhost:1235/rpc/v1 DATABASE_URL=postgres://noop:noop@localhost:5432/noop ponder codegen",
+    "codegen:mainnet": "pnpm --filter @filoz/repair-db build && PONDER_NETWORK=mainnet RPC_URL=http://localhost:1234/rpc/v1 DATABASE_URL=postgres://noop:noop@localhost:5432/noop ponder codegen",
+    "test": "pnpm --filter @filoz/repair-db build && node --experimental-strip-types --test test/*.test.ts",
+    "typecheck": "pnpm run codegen:mainnet && tsc --noEmit",
+    "lint": "biome check ."
+  },
+  "dependencies": {
+    "@filoz/repair-db": "workspace:*",
+    "multiformats": "^13",
+    "ponder": "npm:@rvagg/ponder@^0.16.6",
+    "viem": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@types/node": "catalog:",
+    "drizzle-orm": "catalog:",
+    "typescript": "catalog:"
+  }
+}

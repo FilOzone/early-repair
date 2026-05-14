@@ -33,6 +33,8 @@
       "!**/__snapshots__",
       "!**/components.d.ts",
       "!**/mockServiceWorker.js",
+      "!apps/ponder/abis/*.ts",
+      "!apps/ponder/ponder-env.d.ts",
       "!**/abis/gen.ts",
       "!packages/synapse-core/src/abis/generated.ts"
     ]
