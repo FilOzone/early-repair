@@ -62,4 +62,11 @@ export default createConfig({
       startBlock: network.START_BLOCK,
     },
   },
+  blocks: {
+    ProviderStatusSync: {
+      chain: networkName,
+      startBlock: network.START_BLOCK,
+      interval: 480,
+    },
+  },
 })

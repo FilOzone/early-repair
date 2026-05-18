@@ -1,7 +1,7 @@
 import { ponder } from 'ponder:registry'
-import { dataSets, pieces } from 'ponder:schema'
+import { dataSets, pieces, providers } from 'ponder:schema'
 import { decodePiece } from './cid-utils.ts'
-import { eventBlock, metadataFromEntries } from './event-utils.ts'
+import { eventBlock, metadataFromEntries, metadataHasEmptyFlag } from './event-utils.ts'
 
 ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
   const { dataSetId, providerId, metadataKeys, metadataValues } = event.args as {
@@ -13,6 +13,8 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
 
   const metadata = metadataFromEntries(metadataKeys, metadataValues)
   const block = eventBlock(event)
+  const withCdn = metadataHasEmptyFlag(metadata, 'withCDN')
+  const withIpfsIndexing = metadataHasEmptyFlag(metadata, 'withIPFSIndexing')
 
   await context.db
     .insert(dataSets)
@@ -20,7 +22,9 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
       dataSetId,
       providerId,
       metadata,
-      pdpEndEpoch: 0n,
+      withCdn,
+      withIpfsIndexing,
+      pdpEndEpoch: null,
       deleted: false,
       createdAtBlock: event.block.number,
       ...block,
@@ -28,6 +32,8 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
     .onConflictDoUpdate({
       providerId,
       metadata,
+      withCdn,
+      withIpfsIndexing,
       deleted: false,
       ...block,
     })
@@ -82,6 +88,28 @@ ponder.on('FWSS:PDPPaymentTerminated', async ({ event, context }) => {
 
   await context.db.update(dataSets, { dataSetId }).set({
     pdpEndEpoch: endEpoch,
+    ...eventBlock(event),
+  })
+})
+
+ponder.on('FWSS:ProviderApproved', async ({ event, context }) => {
+  const { providerId } = event.args as { providerId: bigint }
+  const existing = await context.db.find(providers, { providerId })
+  if (!existing) return
+
+  await context.db.update(providers, { providerId }).set({
+    approved: true,
+    ...eventBlock(event),
+  })
+})
+
+ponder.on('FWSS:ProviderUnapproved', async ({ event, context }) => {
+  const { providerId } = event.args as { providerId: bigint }
+  const existing = await context.db.find(providers, { providerId })
+  if (!existing) return
+
+  await context.db.update(providers, { providerId }).set({
+    approved: false,
     ...eventBlock(event),
   })
 })
