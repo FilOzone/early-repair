@@ -12,6 +12,8 @@ export const providers = pgTable(
     serviceUrl: text('service_url'),
     providerActive: boolean('provider_active').notNull(),
     pdpProductActive: boolean('pdp_product_active').notNull(),
+    approved: boolean('approved').notNull().default(false),
+    endorsed: boolean('endorsed').notNull().default(false),
     createdAtBlock: bigint('created_at_block', { mode: 'bigint' }),
     updatedAtBlock: bigint('updated_at_block', { mode: 'bigint' }).notNull(),
   },

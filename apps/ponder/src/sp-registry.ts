@@ -94,6 +94,8 @@ async function upsertProviderInfo({
       serviceUrl: null,
       providerActive: info.providerActive,
       pdpProductActive: false,
+      approved: false,
+      endorsed: false,
       createdAtBlock: event.block.number,
       ...block,
     })
@@ -141,6 +143,8 @@ ponder.on('SPRegistry:ProductAdded', async ({ event, context }) => {
       serviceUrl: capabilities?.serviceURL ?? null,
       providerActive: true,
       pdpProductActive: true,
+      approved: false,
+      endorsed: false,
       createdAtBlock: event.block.number,
       ...block,
     })
@@ -174,6 +178,8 @@ ponder.on('SPRegistry:ProductUpdated', async ({ event, context }) => {
       serviceUrl: capabilities?.serviceURL ?? null,
       providerActive: true,
       pdpProductActive: true,
+      approved: false,
+      endorsed: false,
       createdAtBlock: event.block.number,
       ...block,
     })

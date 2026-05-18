@@ -10,6 +10,8 @@ export const providers = onchainTable(
     serviceUrl: t.text(),
     providerActive: t.boolean().notNull(),
     pdpProductActive: t.boolean().notNull(),
+    approved: t.boolean().notNull().default(false),
+    endorsed: t.boolean().notNull().default(false),
     createdAtBlock: t.int8({ mode: 'bigint' }),
     updatedAtBlock: t.int8({ mode: 'bigint' }).notNull(),
   }),
