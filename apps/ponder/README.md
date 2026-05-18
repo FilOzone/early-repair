@@ -11,7 +11,8 @@ Ponder owns the on-chain write schema in `apps/ponder/ponder.schema.ts`, with ta
 
 - `providers`: current ServiceProviderRegistry state, including provider name from block-scoped `eth_call`s and the
   PDP product `serviceURL`.
-- `data_sets`: current FWSS dataset state. `pdp_end_epoch != 0` means PDP payment termination has started.
+- `data_sets`: current FWSS dataset state. `with_cdn` and `with_ipfs_indexing` are extracted from dataset metadata.
+  `pdp_end_epoch != 0` means PDP payment termination has started.
 - `pieces`: current piece inventory keyed by `(data_set_id, piece_id)`, with a secondary CID index for finding alternate
   providers.
 

@@ -1,7 +1,7 @@
 import { ponder } from 'ponder:registry'
 import { dataSets, pieces } from 'ponder:schema'
 import { decodePiece } from './cid-utils.ts'
-import { eventBlock, metadataFromEntries } from './event-utils.ts'
+import { eventBlock, metadataFromEntries, metadataHasEmptyFlag } from './event-utils.ts'
 
 ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
   const { dataSetId, providerId, metadataKeys, metadataValues } = event.args as {
@@ -13,6 +13,8 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
 
   const metadata = metadataFromEntries(metadataKeys, metadataValues)
   const block = eventBlock(event)
+  const withCdn = metadataHasEmptyFlag(metadata, 'withCDN')
+  const withIpfsIndexing = metadataHasEmptyFlag(metadata, 'withIPFSIndexing')
 
   await context.db
     .insert(dataSets)
@@ -20,6 +22,8 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
       dataSetId,
       providerId,
       metadata,
+      withCdn,
+      withIpfsIndexing,
       pdpEndEpoch: 0n,
       deleted: false,
       createdAtBlock: event.block.number,
@@ -28,6 +32,8 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
     .onConflictDoUpdate({
       providerId,
       metadata,
+      withCdn,
+      withIpfsIndexing,
       deleted: false,
       ...block,
     })

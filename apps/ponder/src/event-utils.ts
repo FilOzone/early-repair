@@ -18,3 +18,7 @@ export function metadataFromEntries(
   }
   return metadata
 }
+
+export function metadataHasEmptyFlag(metadata: Record<string, string> | null, key: string): boolean {
+  return metadata?.[key] === ''
+}

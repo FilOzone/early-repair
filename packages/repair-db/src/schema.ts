@@ -24,6 +24,8 @@ export const dataSets = pgTable(
     dataSetId: bigint('data_set_id', { mode: 'bigint' }).primaryKey(),
     providerId: bigint('provider_id', { mode: 'bigint' }).notNull(),
     metadata: jsonb('metadata').$type<JsonRecord | null>(),
+    withCdn: boolean('with_cdn').notNull(),
+    withIpfsIndexing: boolean('with_ipfs_indexing').notNull(),
     pdpEndEpoch: bigint('pdp_end_epoch', { mode: 'bigint' }).notNull(),
     deleted: boolean('deleted').notNull(),
     createdAtBlock: bigint('created_at_block', { mode: 'bigint' }).notNull(),
