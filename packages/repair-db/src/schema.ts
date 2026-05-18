@@ -28,7 +28,7 @@ export const dataSets = pgTable(
     metadata: jsonb('metadata').$type<JsonRecord | null>(),
     withCdn: boolean('with_cdn').notNull(),
     withIpfsIndexing: boolean('with_ipfs_indexing').notNull(),
-    pdpEndEpoch: bigint('pdp_end_epoch', { mode: 'bigint' }).notNull(),
+    pdpEndEpoch: bigint('pdp_end_epoch', { mode: 'bigint' }),
     deleted: boolean('deleted').notNull(),
     createdAtBlock: bigint('created_at_block', { mode: 'bigint' }).notNull(),
     updatedAtBlock: bigint('updated_at_block', { mode: 'bigint' }).notNull(),

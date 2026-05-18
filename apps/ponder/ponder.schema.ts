@@ -28,7 +28,7 @@ export const dataSets = onchainTable(
     metadata: t.jsonb(),
     withCdn: t.boolean().notNull(),
     withIpfsIndexing: t.boolean().notNull(),
-    pdpEndEpoch: t.int8({ mode: 'bigint' }).notNull(),
+    pdpEndEpoch: t.int8({ mode: 'bigint' }),
     deleted: t.boolean().notNull(),
     createdAtBlock: t.int8({ mode: 'bigint' }).notNull(),
     updatedAtBlock: t.int8({ mode: 'bigint' }).notNull(),
