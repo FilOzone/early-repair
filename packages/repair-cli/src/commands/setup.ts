@@ -49,17 +49,52 @@ export const setup = Cli.create('setup', {
       }
 
       // Indexer URL
-      const indexerUrl = await p.text({
-        message: 'Enter your Indexer Postgres URL',
+      const indexerMainnetUrl = await p.text({
+        message: 'Enter your Mainnet Indexer Postgres URL',
         validate(value) {
           if (!value || !validatePostgresUrl(value)) {
             return `Invalid postgres URL!`
           }
         },
-        initialValue: config.get('indexerUrl'),
+        initialValue: config.get('indexerMainnetUrl'),
         withGuide: false,
       })
-      if (p.isCancel(indexerUrl)) {
+      if (p.isCancel(indexerMainnetUrl)) {
+        return c.error({
+          code: 'SETUP_CANCELLED',
+          message: 'Setup cancelled',
+          retryable: false,
+        })
+      }
+      const indexerCalibrationUrl = await p.text({
+        message: 'Enter your Calibration Indexer Postgres URL',
+        validate(value) {
+          if (!value || !validatePostgresUrl(value)) {
+            return `Invalid postgres URL!`
+          }
+        },
+        initialValue: config.get('indexerCalibrationUrl'),
+        withGuide: false,
+      })
+      if (p.isCancel(indexerCalibrationUrl)) {
+        return c.error({
+          code: 'SETUP_CANCELLED',
+          message: 'Setup cancelled',
+          retryable: false,
+        })
+      }
+
+      // Chain
+      const chainId = await p.select({
+        message: 'Select your chain',
+        options: [
+          { value: 314, label: 'Mainnet' },
+          { value: 314159, label: 'Calibration' },
+        ],
+        withGuide: false,
+        initialValue: config.get('chainId'),
+      })
+      if (p.isCancel(chainId)) {
         return c.error({
           code: 'SETUP_CANCELLED',
           message: 'Setup cancelled',
@@ -83,7 +118,9 @@ export const setup = Cli.create('setup', {
 
       // Set config
       config.set('privateKey', pk)
-      config.set('indexerUrl', indexerUrl)
+      config.set('indexerMainnetUrl', indexerMainnetUrl)
+      config.set('indexerCalibrationUrl', indexerCalibrationUrl)
+      config.set('chainId', chainId)
       config.set('dbPath', dbPath)
 
       // setup database

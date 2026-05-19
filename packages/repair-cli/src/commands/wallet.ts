@@ -4,17 +4,20 @@ import * as Pay from '@filoz/synapse-core/pay'
 import { claimTokens, formatBalance, formatFraction, parseUnits } from '@filoz/synapse-core/utils'
 import { Cli, z } from 'incur'
 import { getBalance, waitForTransactionReceipt } from 'viem/actions'
+import { contextMiddleware, contextSchema } from '../middleware.ts'
 import { getClient, globalOptions, hashLink } from '../utils.ts'
 
 export const wallet = Cli.create('wallet', {
   description: 'Wallet commands',
+  vars: contextSchema,
 })
 
 wallet.command('fund', {
   description: 'Fund a calibration wallet from a faucet',
   options: globalOptions,
+  middleware: [contextMiddleware],
   async *run(c) {
-    const { client, chain } = getClient(c.options.chain)
+    const { client, chain } = c.var
 
     yield 'Funding wallet...'
     try {
@@ -46,8 +49,9 @@ wallet.command('fund', {
 wallet.command('balance', {
   description: 'Get wallet and pay account summary',
   options: globalOptions,
+  middleware: [contextMiddleware],
   async run(c) {
-    const { client } = getClient(c.options.chain)
+    const { client } = c.var
     const balanceFIL = await getBalance(client, {
       address: client.account.address,
     })
@@ -86,8 +90,9 @@ wallet.command('deposit', {
     amount: z.coerce.number().gt(0).describe('Amount of USDFC to deposit'),
   }),
   options: globalOptions,
+  middleware: [contextMiddleware],
   async *run(c) {
-    const { client, chain } = getClient(c.options.chain)
+    const { client, chain } = c.var
 
     try {
       yield `Depositing ${c.args.amount} tokens to wallet...`
@@ -118,8 +123,9 @@ wallet.command('withdraw', {
     amount: z.coerce.number().gt(0).describe('Amount of USDFC to withdraw'),
   }),
   options: globalOptions,
+  middleware: [contextMiddleware],
   async *run(c) {
-    const { client, chain } = getClient(c.options.chain)
+    const { client, chain } = c.var
 
     try {
       yield `Withdrawing ${c.args.amount} USDFC from pay account...`

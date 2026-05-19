@@ -1,5 +1,6 @@
 import { relations } from 'drizzle-orm'
 import { bigint, boolean, index, jsonb, pgSchema, primaryKey, text } from 'drizzle-orm/pg-core'
+import type { Address } from 'viem'
 
 export type JsonRecord = Record<string, string>
 
@@ -9,11 +10,13 @@ export const providers = schema.table(
   'providers',
   {
     providerId: bigint('provider_id', { mode: 'bigint' }).primaryKey(),
-    providerAddress: text('provider_address'),
+    providerAddress: text('provider_address').$type<Address>(),
     name: text('name'),
     serviceUrl: text('service_url'),
     providerActive: boolean('provider_active').notNull(),
     pdpProductActive: boolean('pdp_product_active').notNull(),
+    approved: boolean('approved').notNull().default(false),
+    endorsed: boolean('endorsed').notNull().default(false),
     createdAtBlock: bigint('created_at_block', { mode: 'bigint' }),
     updatedAtBlock: bigint('updated_at_block', { mode: 'bigint' }).notNull(),
   },
@@ -30,6 +33,10 @@ export const dataSets = schema.table(
     dataSetId: bigint('data_set_id', { mode: 'bigint' }).primaryKey(),
     providerId: bigint('provider_id', { mode: 'bigint' }).notNull(),
     metadata: jsonb('metadata').$type<JsonRecord | null>(),
+    payer: text('payer').notNull(),
+    source: text('source'),
+    withCdn: boolean('with_cdn').notNull(),
+    withIpfsIndexing: boolean('with_ipfs_indexing').notNull(),
     pdpEndEpoch: bigint('pdp_end_epoch', { mode: 'bigint' }).notNull(),
     deleted: boolean('deleted').notNull(),
     createdAtBlock: bigint('created_at_block', { mode: 'bigint' }).notNull(),

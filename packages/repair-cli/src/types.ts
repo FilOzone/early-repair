@@ -16,6 +16,8 @@ export type IndexerDatabase = NodePgDatabase<typeof indexerSchema> & {
 
 export interface Config {
   privateKey: Hex
-  indexerUrl: string
+  indexerMainnetUrl: string
+  indexerCalibrationUrl: string
+  chainId: number
   dbPath: string
 }

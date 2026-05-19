@@ -16,11 +16,17 @@ export const config = new Conf<Config>({
     privateKey: {
       type: 'string',
     },
-    indexerUrl: {
-      type: 'string',
-    },
     dbPath: {
       type: 'string',
+    },
+    indexerMainnetUrl: {
+      type: 'string',
+    },
+    indexerCalibrationUrl: {
+      type: 'string',
+    },
+    chainId: {
+      type: 'number',
     },
   },
 })
@@ -61,20 +67,9 @@ export function getClient(chainId: number) {
 
 /**
  * Global options for the CLI
- * - chainId - The chain ID to use
  * - debug - Debug mode
  */
 export const globalOptions = z.object({
-  chain: z
-    .enum(['calibration', 'mainnet'])
-    .optional()
-    .default('calibration')
-    .transform((value) => {
-      if (value === 'calibration') return 314159
-      if (value === 'mainnet') return 314
-      throw new Error(`Invalid chain ID: ${value}`)
-    })
-    .describe('Chain to use'),
   debug: z.boolean().optional().default(false).describe('Debug mode'),
 })
 
