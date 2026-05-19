@@ -13,6 +13,7 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
   }
 
   const metadata = metadataFromEntries(metadataKeys, metadataValues)
+  const source = metadata?.source ?? null
   const block = eventBlock(event)
   const withCdn = metadataHasEmptyFlag(metadata, 'withCDN')
   const withIpfsIndexing = metadataHasEmptyFlag(metadata, 'withIPFSIndexing')
@@ -23,6 +24,7 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
       dataSetId,
       providerId,
       payer,
+      source,
       metadata,
       withCdn,
       withIpfsIndexing,
@@ -34,6 +36,7 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
     .onConflictDoUpdate({
       providerId,
       payer,
+      source,
       metadata,
       withCdn,
       withIpfsIndexing,
