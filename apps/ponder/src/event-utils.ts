@@ -4,11 +4,8 @@ export function eventBlock(event: { block: { number: bigint } }) {
   }
 }
 
-export function metadataFromEntries(
-  keys: readonly string[] | undefined,
-  values: readonly string[] | undefined
-): Record<string, string> | null {
-  if (!keys?.length) return null
+export function metadataFromEntries(keys: readonly string[], values: readonly string[]): Record<string, string> | null {
+  if (keys.length === 0) return null
 
   const metadata: Record<string, string> = {}
   for (let i = 0; i < keys.length; i++) {

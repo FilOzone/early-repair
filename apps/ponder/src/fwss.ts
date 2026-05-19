@@ -4,14 +4,7 @@ import { decodePiece } from './cid-utils.ts'
 import { eventBlock, metadataFromEntries, metadataHasEmptyFlag } from './event-utils.ts'
 
 ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
-  const { dataSetId, providerId, payer, metadataKeys, metadataValues } = event.args as {
-    dataSetId: bigint
-    providerId: bigint
-    payer: `0x${string}`
-    metadataKeys?: readonly string[]
-    metadataValues?: readonly string[]
-  }
-
+  const { dataSetId, providerId, payer, metadataKeys, metadataValues } = event.args
   const metadata = metadataFromEntries(metadataKeys, metadataValues)
   const source = metadata?.source ?? null
   const block = eventBlock(event)
@@ -46,19 +39,7 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
 })
 
 ponder.on('FWSS:PieceAdded', async ({ event, context }) => {
-  const {
-    dataSetId,
-    pieceId,
-    pieceCid: pieceCidRaw,
-    keys,
-    values,
-  } = event.args as {
-    dataSetId: bigint
-    pieceId: bigint
-    pieceCid: { data: `0x${string}` }
-    keys?: readonly string[]
-    values?: readonly string[]
-  }
+  const { dataSetId, pieceId, pieceCid: pieceCidRaw, keys, values } = event.args
 
   const decoded = decodePiece(pieceCidRaw)
   const metadata = metadataFromEntries(keys, values)
@@ -88,7 +69,7 @@ ponder.on('FWSS:PieceAdded', async ({ event, context }) => {
 })
 
 ponder.on('FWSS:PDPPaymentTerminated', async ({ event, context }) => {
-  const { dataSetId, endEpoch } = event.args as { dataSetId: bigint; endEpoch: bigint }
+  const { dataSetId, endEpoch } = event.args
   const existing = await context.db.find(dataSets, { dataSetId })
   if (!existing) return
 
@@ -99,7 +80,7 @@ ponder.on('FWSS:PDPPaymentTerminated', async ({ event, context }) => {
 })
 
 ponder.on('FWSS:ProviderApproved', async ({ event, context }) => {
-  const { providerId } = event.args as { providerId: bigint }
+  const { providerId } = event.args
   const existing = await context.db.find(providers, { providerId })
   if (!existing) return
 
@@ -110,7 +91,7 @@ ponder.on('FWSS:ProviderApproved', async ({ event, context }) => {
 })
 
 ponder.on('FWSS:ProviderUnapproved', async ({ event, context }) => {
-  const { providerId } = event.args as { providerId: bigint }
+  const { providerId } = event.args
   const existing = await context.db.find(providers, { providerId })
   if (!existing) return
 

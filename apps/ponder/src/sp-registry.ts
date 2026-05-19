@@ -1,3 +1,4 @@
+import type { Context, Event } from 'ponder:registry'
 import { ponder } from 'ponder:registry'
 import { providers } from 'ponder:schema'
 import { PDP_PRODUCT_TYPE } from '@filoz/repair-db'
@@ -6,14 +7,13 @@ import { ServiceProviderRegistryAbi } from './abis.ts'
 import { eventBlock } from './event-utils.ts'
 
 interface ProviderInfo {
-  providerAddress: string | null
+  providerAddress: Address | null
   name: string | null
   providerActive: boolean
 }
 
-interface ReadProviderContext {
-  client: any
-}
+type SpRegistryContext = Pick<Context<'SPRegistry:ProviderRegistered'>, 'client' | 'db'>
+type SpRegistryEvent = Pick<Event<'SPRegistry:ProviderRegistered'>, 'block' | 'log'>
 
 function decodeCapabilityValue(hex: `0x${string}`): string {
   try {
@@ -27,15 +27,15 @@ function decodeCapabilityValue(hex: `0x${string}`): string {
 }
 
 function capabilitiesFromEntries(
-  keys: readonly string[] | undefined,
-  values: readonly `0x${string}`[] | undefined
+  keys: readonly string[],
+  values: readonly `0x${string}`[]
 ): Record<string, string> | null {
-  if (!keys?.length) return null
+  if (keys.length === 0) return null
 
   const capabilities: Record<string, string> = {}
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i]
-    const value = values?.[i]
+    const value = values[i]
     if (key === undefined) continue
     capabilities[key] = value ? decodeCapabilityValue(value) : ''
   }
@@ -43,7 +43,7 @@ function capabilitiesFromEntries(
 }
 
 async function readProviderInfo(
-  context: ReadProviderContext,
+  context: Pick<SpRegistryContext, 'client'>,
   registryAddress: Address,
   providerId: bigint,
   blockNumber: bigint
@@ -56,7 +56,7 @@ async function readProviderInfo(
     blockNumber,
   })
 
-  const [providerAddress, , name, , providerActive] = result as readonly [string, string, string, string, boolean]
+  const [providerAddress, , name, , providerActive] = result
 
   return { providerAddress, name, providerActive }
 }
@@ -67,10 +67,10 @@ async function upsertProviderInfo({
   providerId,
   providerAddress,
 }: {
-  context: ReadProviderContext & { db: any }
-  event: { block: { number: bigint }; log: { address: string } }
+  context: SpRegistryContext
+  event: SpRegistryEvent
   providerId: bigint
-  providerAddress?: string
+  providerAddress?: Address
 }) {
   let info: ProviderInfo = {
     providerAddress: providerAddress ?? null,
@@ -79,7 +79,7 @@ async function upsertProviderInfo({
   }
 
   try {
-    info = await readProviderInfo(context, event.log.address as Address, providerId, event.block.number)
+    info = await readProviderInfo(context, event.log.address, providerId, event.block.number)
   } catch {
     // The event payload is enough to keep address-level repair inventory usable.
   }
@@ -108,27 +108,18 @@ async function upsertProviderInfo({
 }
 
 ponder.on('SPRegistry:ProviderRegistered', async ({ event, context }) => {
-  const { providerId, serviceProvider } = event.args as {
-    providerId: bigint
-    serviceProvider: string
-  }
+  const { providerId, serviceProvider } = event.args
 
   await upsertProviderInfo({ context, event, providerId, providerAddress: serviceProvider })
 })
 
 ponder.on('SPRegistry:ProviderInfoUpdated', async ({ event, context }) => {
-  const { providerId } = event.args as { providerId: bigint }
+  const { providerId } = event.args
   await upsertProviderInfo({ context, event, providerId })
 })
 
 ponder.on('SPRegistry:ProductAdded', async ({ event, context }) => {
-  const { providerId, productType, serviceProvider, capabilityKeys, capabilityValues } = event.args as {
-    providerId: bigint
-    productType: number
-    serviceProvider: string
-    capabilityKeys?: readonly string[]
-    capabilityValues?: readonly `0x${string}`[]
-  }
+  const { providerId, productType, serviceProvider, capabilityKeys, capabilityValues } = event.args
   if (productType !== PDP_PRODUCT_TYPE) return
 
   const capabilities = capabilitiesFromEntries(capabilityKeys, capabilityValues)
@@ -157,13 +148,7 @@ ponder.on('SPRegistry:ProductAdded', async ({ event, context }) => {
 })
 
 ponder.on('SPRegistry:ProductUpdated', async ({ event, context }) => {
-  const { providerId, productType, serviceProvider, capabilityKeys, capabilityValues } = event.args as {
-    providerId: bigint
-    productType: number
-    serviceProvider: string
-    capabilityKeys?: readonly string[]
-    capabilityValues?: readonly `0x${string}`[]
-  }
+  const { providerId, productType, serviceProvider, capabilityKeys, capabilityValues } = event.args
   if (productType !== PDP_PRODUCT_TYPE) return
 
   const capabilities = capabilitiesFromEntries(capabilityKeys, capabilityValues)
@@ -192,7 +177,7 @@ ponder.on('SPRegistry:ProductUpdated', async ({ event, context }) => {
 })
 
 ponder.on('SPRegistry:ProductRemoved', async ({ event, context }) => {
-  const { providerId, productType } = event.args as { providerId: bigint; productType: number }
+  const { providerId, productType } = event.args
   if (productType !== PDP_PRODUCT_TYPE) return
 
   const existing = await context.db.find(providers, { providerId })
@@ -205,7 +190,7 @@ ponder.on('SPRegistry:ProductRemoved', async ({ event, context }) => {
 })
 
 ponder.on('SPRegistry:ProviderRemoved', async ({ event, context }) => {
-  const { providerId } = event.args as { providerId: bigint }
+  const { providerId } = event.args
   const existing = await context.db.find(providers, { providerId })
   if (!existing) return
 
