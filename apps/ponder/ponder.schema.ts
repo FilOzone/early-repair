@@ -25,6 +25,7 @@ export const dataSets = onchainTable(
   (t) => ({
     dataSetId: t.int8({ mode: 'bigint' }).primaryKey(),
     providerId: t.int8({ mode: 'bigint' }).notNull(),
+    payer: t.text().notNull(),
     metadata: t.jsonb(),
     withCdn: t.boolean().notNull(),
     withIpfsIndexing: t.boolean().notNull(),
