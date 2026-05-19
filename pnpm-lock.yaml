@@ -25,8 +25,8 @@ catalogs:
       specifier: 6.0.3
       version: 6.0.3
     viem:
-      specifier: ^2.47.17
-      version: 2.48.8
+      specifier: ^2.48.11
+      version: 2.48.11
 
 overrides:
   '@hono/node-server': ^1.19.13
@@ -65,10 +65,10 @@ importers:
         version: 13.4.2
       ponder:
         specifier: npm:@rvagg/ponder@^0.16.6
-        version: '@rvagg/ponder@0.16.6(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(hono@4.12.18)(typescript@6.0.3)(viem@2.48.8(typescript@6.0.3))'
+        version: '@rvagg/ponder@0.16.6(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(hono@4.12.18)(typescript@6.0.3)(viem@2.48.11(typescript@6.0.3))'
       viem:
         specifier: 'catalog:'
-        version: 2.48.8(typescript@6.0.3)
+        version: 2.48.11(typescript@6.0.3)
     devDependencies:
       '@biomejs/biome':
         specifier: 'catalog:'
@@ -117,7 +117,7 @@ importers:
         version: 6.0.3
       viem:
         specifier: 'catalog:'
-        version: 2.48.8(typescript@6.0.3)
+        version: 2.48.11(typescript@6.0.3)
 
   packages/repair-db:
     dependencies:
@@ -2321,8 +2321,8 @@ packages:
     resolution: {integrity: sha512-kiGUalWN+rgBJ/1OHZsBtU4rXZOfj/7rKQxULKlIzwzQSvMJUUNgPwJEEh7gU6xEVxC0ahoOBvN2YI8GH6FNgA==}
     engines: {node: '>=10.12.0'}
 
-  viem@2.48.8:
-    resolution: {integrity: sha512-Xj3Nrt66SKtn06kczU91ELn9Difr84ZM5A62BTlaisT5lpgt058i2mBkfMZCXHGb1ocOLjzC2ztPhD0Lvky7uQ==}
+  viem@2.48.11:
+    resolution: {integrity: sha512-+WZ5E0dBS6GtKb+1wEk5DeYRRRW42+pFnXCo67Ydodf42sBwO+hu3wnQy66lc4MKmHz+llPVdbyehYr9oTE2iw==}
     peerDependencies:
       typescript: '>=5.0.4'
     peerDependenciesMeta:
@@ -2801,9 +2801,9 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
-  '@ponder/utils@0.2.18(typescript@6.0.3)(viem@2.48.8(typescript@6.0.3))':
+  '@ponder/utils@0.2.18(typescript@6.0.3)(viem@2.48.11(typescript@6.0.3))':
     dependencies:
-      viem: 2.48.8(typescript@6.0.3)
+      viem: 2.48.11(typescript@6.0.3)
     optionalDependencies:
       typescript: 6.0.3
 
@@ -2884,7 +2884,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.60.3':
     optional: true
 
-  '@rvagg/ponder@0.16.6(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(hono@4.12.18)(typescript@6.0.3)(viem@2.48.8(typescript@6.0.3))':
+  '@rvagg/ponder@0.16.6(@opentelemetry/api@1.9.1)(@types/node@25.6.0)(hono@4.12.18)(typescript@6.0.3)(viem@2.48.11(typescript@6.0.3))':
     dependencies:
       '@babel/code-frame': 7.29.0
       '@commander-js/extra-typings': 12.1.0(commander@12.1.0)
@@ -2893,7 +2893,7 @@ snapshots:
       '@escape.tech/graphql-armor-max-depth': 2.4.2
       '@escape.tech/graphql-armor-max-tokens': 2.5.1
       '@hono/node-server': 1.19.14(hono@4.12.18)
-      '@ponder/utils': 0.2.18(typescript@6.0.3)(viem@2.48.8(typescript@6.0.3))
+      '@ponder/utils': 0.2.18(typescript@6.0.3)(viem@2.48.11(typescript@6.0.3))
       abitype: 0.10.3(typescript@6.0.3)
       ansi-escapes: 7.3.0
       commander: 12.1.0
@@ -2919,7 +2919,7 @@ snapshots:
       stacktrace-parser: 0.1.11
       superjson: 2.2.6
       terminal-size: 4.0.1
-      viem: 2.48.8(typescript@6.0.3)
+      viem: 2.48.11(typescript@6.0.3)
       vite: 6.4.2(@types/node@25.6.0)
       vite-node: 1.0.2(@types/node@25.6.0)
       vite-tsconfig-paths: 4.3.1(typescript@6.0.3)(vite@6.4.2(@types/node@25.6.0))
@@ -4390,7 +4390,7 @@ snapshots:
       '@types/istanbul-lib-coverage': 2.0.6
       convert-source-map: 2.0.0
 
-  viem@2.48.8(typescript@6.0.3):
+  viem@2.48.11(typescript@6.0.3):
     dependencies:
       '@noble/curves': 1.9.1
       '@noble/hashes': 1.8.0
