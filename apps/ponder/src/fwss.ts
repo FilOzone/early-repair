@@ -4,14 +4,16 @@ import { decodePiece } from './cid-utils.ts'
 import { eventBlock, metadataFromEntries, metadataHasEmptyFlag } from './event-utils.ts'
 
 ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
-  const { dataSetId, providerId, metadataKeys, metadataValues } = event.args as {
+  const { dataSetId, providerId, payer, metadataKeys, metadataValues } = event.args as {
     dataSetId: bigint
     providerId: bigint
+    payer: `0x${string}`
     metadataKeys?: readonly string[]
     metadataValues?: readonly string[]
   }
 
   const metadata = metadataFromEntries(metadataKeys, metadataValues)
+  const source = metadata?.source ?? null
   const block = eventBlock(event)
   const withCdn = metadataHasEmptyFlag(metadata, 'withCDN')
   const withIpfsIndexing = metadataHasEmptyFlag(metadata, 'withIPFSIndexing')
@@ -21,6 +23,8 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
     .values({
       dataSetId,
       providerId,
+      payer,
+      source,
       metadata,
       withCdn,
       withIpfsIndexing,
@@ -31,6 +35,8 @@ ponder.on('FWSS:DataSetCreated', async ({ event, context }) => {
     })
     .onConflictDoUpdate({
       providerId,
+      payer,
+      source,
       metadata,
       withCdn,
       withIpfsIndexing,
