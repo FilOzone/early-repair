@@ -1,3 +1,4 @@
+import type { Context } from 'ponder:registry'
 import { ponder } from 'ponder:registry'
 import { providers } from 'ponder:schema'
 import { and, eq, inArray, notInArray } from 'drizzle-orm'
@@ -11,18 +12,20 @@ function endorsementSetAddress(chainId: number): `0x${string}` | null {
   return null
 }
 
-async function syncEndorsements(context: { chain: { id: number }; client: any; db: any }, blockNumber: bigint) {
+type ProviderStatusContext = Pick<Context<'ProviderStatusSync:block'>, 'chain' | 'client' | 'db'>
+
+async function syncEndorsements(context: ProviderStatusContext, blockNumber: bigint) {
   const address = endorsementSetAddress(context.chain.id)
   if (!address) return
 
   let providerIds: readonly bigint[]
   try {
-    providerIds = (await context.client.readContract({
+    providerIds = await context.client.readContract({
       abi: ProviderIdSetAbi,
       address,
       functionName: 'getProviderIds',
       blockNumber,
-    })) as readonly bigint[]
+    })
   } catch (error) {
     // The endorsement set was deployed after FWSS. Historical syncs before that block can safely skip it.
     console.warn('Failed to read endorsement provider IDs; skipping endorsement sync for block', {

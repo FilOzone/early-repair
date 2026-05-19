@@ -3,7 +3,7 @@ import { dataSets, pieces } from 'ponder:schema'
 import { eventBlock } from './event-utils.ts'
 
 ponder.on('PDPVerifier:PiecesRemoved', async ({ event, context }) => {
-  const { setId, pieceIds } = event.args as { setId: bigint; pieceIds: readonly bigint[] }
+  const { setId, pieceIds } = event.args
   const block = eventBlock(event)
 
   for (const pieceId of pieceIds) {
@@ -19,7 +19,7 @@ ponder.on('PDPVerifier:PiecesRemoved', async ({ event, context }) => {
 })
 
 ponder.on('PDPVerifier:DataSetDeleted', async ({ event, context }) => {
-  const { setId } = event.args as { setId: bigint }
+  const { setId } = event.args
   const existing = await context.db.find(dataSets, { dataSetId: setId })
   if (!existing) return
 
