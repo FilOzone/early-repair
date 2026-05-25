@@ -1,10 +1,10 @@
 import { and, desc, eq, inArray } from 'drizzle-orm'
-import type { queueAsPromised } from 'fastq'
-import fastq from 'fastq'
 import { Cli, z } from 'incur'
-import { createRepair } from '../db.ts'
-import type { SelectOperation } from '../local-schema.ts'
+import { createRepair } from '../db/create-repair.ts'
+import { deleteRepair } from '../db/delete-repair.ts'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
+import { runCreateDatasetsPhase } from '../pipeline/create-datasets.ts'
+import { runPullPiecesPhase } from '../pipeline/pull.ts'
 import { globalOptions } from '../utils.ts'
 export const repair = Cli.create('repair', {
   description: 'Repair commands',
@@ -15,11 +15,12 @@ repair.command('create', {
   description: 'Create a new repair',
   options: globalOptions.extend({
     providerId: z.coerce.bigint().describe('Provider ID to repair'),
+    targetProviderId: z.coerce.bigint().optional().describe('Target provider ID for repair'),
   }),
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
-      const { providerId } = c.options
+      const { providerId, targetProviderId } = c.options
       const { indexerDb, indexerSchema, localDb, localSchema, client } = c.var
 
       const repairId = await createRepair({
@@ -28,6 +29,7 @@ repair.command('create', {
         localDb,
         localSchema,
         repairProviderId: providerId,
+        targetProviderId,
         payer: client.account.address,
       })
 
@@ -35,7 +37,7 @@ repair.command('create', {
         repairId,
       })
     } catch (error) {
-      console.error(error)
+      // console.error(error)
       return c.error({
         code: 'REPAIR_FAILED',
         message: error instanceof Error ? error.message : 'Failed to repair the dataset',
@@ -54,7 +56,9 @@ repair.command('list', {
       const repairs = await c.var.localDb.query.repairs.findMany({
         orderBy: [desc(c.var.localSchema.repairs.createdAt)],
         with: {
-          operations: true,
+          operations: {
+            where: eq(c.var.localSchema.operations.status, 'pending'),
+          },
         },
       })
 
@@ -65,6 +69,7 @@ repair.command('list', {
           status: repairWithoutOperations.status,
           repairProviderId: repairWithoutOperations.repairProviderId,
           targetProviderId: repairWithoutOperations.targetProviderId,
+          targetDataSets: repairWithoutOperations.targetDataSets,
           createdAt: new Date(repairWithoutOperations.createdAt).toISOString(),
           updatedAt: new Date(repairWithoutOperations.updatedAt).toISOString(),
           operations: operations.length,
@@ -85,28 +90,61 @@ repair.command('list', {
   },
 })
 
+repair.command('delete', {
+  description: 'Delete a repair',
+  args: z.object({
+    repairId: z.coerce.number().describe('Repair ID to delete'),
+  }),
+  options: globalOptions,
+  middleware: [contextMiddleware],
+  run: async (c) => {
+    try {
+      const { deleted, operationsDeleted } = await deleteRepair({
+        localDb: c.var.localDb,
+        repairId: c.args.repairId,
+      })
+
+      if (!deleted) {
+        return c.error({
+          code: 'REPAIR_NOT_FOUND',
+          message: 'Repair not found',
+          retryable: false,
+        })
+      }
+
+      return c.ok({
+        repairId: c.args.repairId,
+        operationsDeleted,
+      })
+    } catch (error) {
+      console.error(error)
+      return c.error({
+        code: 'REPAIR_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to delete the repair',
+        retryable: true,
+      })
+    }
+  },
+})
+
 repair.command('run', {
   description: 'Run a repair',
   args: z.object({
     repairId: z.coerce.number().describe('Repair ID to run'),
   }),
-  options: globalOptions,
+  options: globalOptions.extend({
+    concurrency: z.coerce.number().default(4).describe('Concurrency level'),
+    batchSize: z.coerce.number().default(10).describe('Max add_piece operations per pull batch (same group)'),
+    reset: z.boolean().default(false).describe('Reset the repair'),
+  }),
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
       const repair = await c.var.localDb.query.repairs.findFirst({
         where: and(
           eq(c.var.localSchema.repairs.id, c.args.repairId),
-          inArray(c.var.localSchema.repairs.status, ['pending', 'running'])
+          inArray(c.var.localSchema.repairs.status, ['pending'])
         ),
-        with: {
-          operations: {
-            where: and(
-              eq(c.var.localSchema.operations.status, 'pending'),
-              eq(c.var.localSchema.operations.type, 'create_dataset')
-            ),
-          },
-        },
       })
       if (!repair) {
         return c.error({
@@ -116,18 +154,26 @@ repair.command('run', {
         })
       }
 
-      async function worker(operation: SelectOperation) {
-        console.log('Processing operation', operation)
-      }
+      const concurrency = Math.max(1, c.options.concurrency)
+      await runCreateDatasetsPhase({
+        localDb: c.var.localDb,
+        localSchema: c.var.localSchema,
+        client: c.var.client,
+        repairId: c.args.repairId,
+        concurrency,
+        reset: c.options.reset,
+      })
 
-      const queue: queueAsPromised<SelectOperation> = fastq.promise(worker, 4)
-      for (const operation of repair.operations) {
-        queue.push(operation).catch(console.error)
-      }
-
-      await queue.drain()
+      await runPullPiecesPhase({
+        localDb: c.var.localDb,
+        localSchema: c.var.localSchema,
+        repairId: c.args.repairId,
+        concurrency,
+        batchSize: c.options.batchSize,
+        client: c.var.client,
+      })
       return c.ok({
-        repair,
+        repairId: repair.id,
       })
     } catch (error) {
       console.error(error)
