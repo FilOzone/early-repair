@@ -32,7 +32,6 @@ repair.command('create', {
         repairId,
       })
     } catch (error) {
-      // console.error(error)
       return c.error({
         code: 'REPAIR_FAILED',
         message: error instanceof Error ? error.message : 'Failed to repair the dataset',
@@ -65,6 +64,7 @@ repair.command('list', {
           status: repairWithoutOperations.status,
           repairProviderId: repairWithoutOperations.repairProviderId,
           targetProviderId: repairWithoutOperations.targetProviderId,
+          targetProviderUrl: repairWithoutOperations.targetProviderUrl,
           targetDataSets: repairWithoutOperations.targetDataSets,
           createdAt: new Date(repairWithoutOperations.createdAt).toISOString(),
           updatedAt: new Date(repairWithoutOperations.updatedAt).toISOString(),
@@ -150,20 +150,18 @@ repair.command('run', {
 
       const concurrency = Math.max(1, c.options.concurrency)
       await runCreateDatasetsPhase({
-        localDb: c.var.localDb,
-        indexerDb: c.var.indexerDb,
-        client: c.var.client,
+        ...c.var,
         repair,
         concurrency,
         reset: c.options.reset,
       })
 
       await runPullPiecesPhase({
-        localDb: c.var.localDb,
+        ...c.var,
         repair,
         concurrency,
         batchSize: c.options.batchSize,
-        client: c.var.client,
+        reset: c.options.reset,
       })
       return c.ok({
         repairId: repair.id,

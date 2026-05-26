@@ -2,6 +2,9 @@ import type { MetadataObject } from '@filoz/synapse-core'
 import { type Chain, getChain } from '@filoz/synapse-core/chains'
 import Conf from 'conf'
 import { pushSQLiteSchema } from 'drizzle-kit/api'
+import { getTableColumns, SQL, sql } from 'drizzle-orm'
+import type { PgTable } from 'drizzle-orm/pg-core'
+import type { SQLiteTable } from 'drizzle-orm/sqlite-core'
 import { z } from 'incur'
 import { request } from 'iso-web/http'
 import pLocate from 'p-locate'
@@ -264,4 +267,23 @@ export async function findPieceOnProviders(providers: string[], pieceCid: string
     { concurrency: 5 }
   )
   return result
+}
+
+export const buildConflictUpdateColumns = <T extends PgTable | SQLiteTable, Q extends keyof T['_']['columns']>(
+  table: T,
+  columns?: Q[]
+) => {
+  const cls = getTableColumns(table)
+  const cols = columns ?? (Object.keys(cls) as Q[])
+  const r = cols.reduce(
+    (acc, column) => {
+      const colName = cls[column].name
+
+      acc[column] = sql.raw(`excluded.${colName}`)
+      return acc
+    },
+    {} as Record<Q, SQL>
+  )
+
+  return r
 }

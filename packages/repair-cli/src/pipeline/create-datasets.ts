@@ -38,6 +38,8 @@ export function createDatasetWorker(options: CreateDatasetWorkerOptions) {
 
     try {
       let result: CreateDatasetOperationResult
+
+      // check if dataset already exists
       const maybeDataset = await getDatasetForGroup({
         indexerDb: options.indexerDb,
         providerId: options.repair.repairProviderId,

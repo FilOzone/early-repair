@@ -101,6 +101,7 @@ src/
 | `getProvidersByCid`             | `get-providers-by-cid.ts`           | Alternate providers per CID; empty array if none        |
 | `selectAlternateRepairProvider` | `select-alternate-repair-provider.ts` | Automatic target provider selection                   |
 | `getRepairProvider`             | `get-repair-provider.ts`              | Load explicit target provider by ID                   |
+| `filterPullPiecesNotInDataset`  | `filter-pull-pieces-not-in-dataset.ts` | Exclude CIDs already indexed in a dataset            |
 | `updateOperation`               | `update-operation.ts`               | Patch local operation status/result/error               |
 
 ## Local schema
