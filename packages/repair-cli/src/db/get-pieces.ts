@@ -1,19 +1,18 @@
 import { and, asc, eq } from 'drizzle-orm'
 import type { InsertOperation } from '../local-schema.ts'
-import type { Group, IndexerQueryOptions } from '../types.ts'
+import type { Group, IndexerDatabase } from '../types.ts'
 import { getProvidersByCid } from './get-providers-by-cid.ts'
 
 /** Default page size when paginating pieces from the indexer. */
-export const DEFAULT_PIECES_PAGE_SIZE = 4000
+export const DEFAULT_PIECES_PAGE_SIZE = 3000
 
 /** Options for fetching one page of `add_piece` operations for a repair. */
-export type GetPiecesPageOptions = IndexerQueryOptions & {
+export type GetPiecesPageOptions = {
+  indexerDb: IndexerDatabase
   /** Source provider whose pieces are being repaired. */
   providerId: bigint
   /** Local repair row to attach operations to. */
   repairId: number
-  /** Target provider service URL stored on each `add_piece` operation. */
-  serviceUrl: string
   /** Max indexer rows per page. Defaults to {@link DEFAULT_PIECES_PAGE_SIZE}. */
   limit?: number
   /** SQL offset for the indexer query. */
@@ -83,31 +82,30 @@ export function emptySeenCidsByGroup(): Record<Group, Set<string>> {
  */
 export async function getPiecesPage({
   indexerDb,
-  indexerSchema,
   providerId,
   repairId,
-  serviceUrl,
   limit = DEFAULT_PIECES_PAGE_SIZE,
   offset = 0,
   seenCidsByGroup = emptySeenCidsByGroup(),
 }: GetPiecesPageOptions): Promise<GetPiecesPageResult> {
+  const schema = indexerDb._.fullSchema
   const rows = await indexerDb
     .select({
-      cid: indexerSchema.pieces.cid,
-      metadata: indexerSchema.pieces.metadata,
-      withCdn: indexerSchema.dataSets.withCdn,
-      withIpfsIndexing: indexerSchema.dataSets.withIpfsIndexing,
+      cid: schema.pieces.cid,
+      metadata: schema.pieces.metadata,
+      withCdn: schema.dataSets.withCdn,
+      withIpfsIndexing: schema.dataSets.withIpfsIndexing,
     })
-    .from(indexerSchema.pieces)
-    .innerJoin(indexerSchema.dataSets, eq(indexerSchema.pieces.dataSetId, indexerSchema.dataSets.dataSetId))
+    .from(schema.pieces)
+    .innerJoin(schema.dataSets, eq(schema.pieces.dataSetId, schema.dataSets.dataSetId))
     .where(
       and(
-        eq(indexerSchema.dataSets.providerId, providerId),
-        eq(indexerSchema.dataSets.deleted, false),
-        eq(indexerSchema.pieces.removed, false)
+        eq(schema.dataSets.providerId, providerId),
+        eq(schema.dataSets.deleted, false),
+        eq(schema.pieces.removed, false)
       )
     )
-    .orderBy(asc(indexerSchema.pieces.dataSetId), asc(indexerSchema.pieces.pieceId))
+    .orderBy(asc(schema.pieces.dataSetId), asc(schema.pieces.pieceId))
     .limit(limit)
     .offset(offset)
 
@@ -126,7 +124,6 @@ export async function getPiecesPage({
   // Resolve pull sources in one query per page; exclude the provider being repaired from alternates.
   const providersByCid = await getProvidersByCid({
     indexerDb,
-    indexerSchema,
     cids: pieces.map((piece) => piece.cid),
     excludedProviderIds: [providerId],
   })
@@ -143,7 +140,6 @@ export async function getPiecesPage({
       status: hasAlternates ? 'pending' : 'skipped',
       data: {
         cid,
-        serviceUrl,
         metadata: metadata ?? {},
         alternateProviders,
       },

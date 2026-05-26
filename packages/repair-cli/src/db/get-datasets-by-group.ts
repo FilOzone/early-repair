@@ -1,9 +1,10 @@
 import { and, asc, eq } from 'drizzle-orm'
 import type { Address } from 'viem'
-import type { Group, IndexerQueryOptions } from '../types.ts'
+import type { Group, IndexerDatabase } from '../types.ts'
 import { EARLY_REPAIR_SOURCE } from '../utils.ts'
 
-export type GetDataSetsByGroupOptions = IndexerQueryOptions & {
+export type GetDataSetsByGroupOptions = {
+  indexerDb: IndexerDatabase
   providerId: bigint
   payer: Address
 }
@@ -39,28 +40,28 @@ function pieceGroupFromFlags(withCdn: boolean, withIpfsIndexing: boolean): Group
  */
 export async function getDataSetsByGroup({
   indexerDb,
-  indexerSchema,
   providerId,
   payer,
 }: GetDataSetsByGroupOptions): Promise<DataSetsByGroup> {
+  const schema = indexerDb._.fullSchema
   const rows = await indexerDb
     .select({
-      dataSetId: indexerSchema.dataSets.dataSetId,
-      withCdn: indexerSchema.dataSets.withCdn,
-      withIpfsIndexing: indexerSchema.dataSets.withIpfsIndexing,
-      payer: indexerSchema.dataSets.payer,
-      source: indexerSchema.dataSets.source,
+      dataSetId: schema.dataSets.dataSetId,
+      withCdn: schema.dataSets.withCdn,
+      withIpfsIndexing: schema.dataSets.withIpfsIndexing,
+      payer: schema.dataSets.payer,
+      source: schema.dataSets.source,
     })
-    .from(indexerSchema.dataSets)
+    .from(schema.dataSets)
     .where(
       and(
-        eq(indexerSchema.dataSets.providerId, providerId),
-        eq(indexerSchema.dataSets.deleted, false),
-        eq(indexerSchema.dataSets.payer, payer.toLowerCase()),
-        eq(indexerSchema.dataSets.source, EARLY_REPAIR_SOURCE)
+        eq(schema.dataSets.providerId, providerId),
+        eq(schema.dataSets.deleted, false),
+        eq(schema.dataSets.payer, payer.toLowerCase()),
+        eq(schema.dataSets.source, EARLY_REPAIR_SOURCE)
       )
     )
-    .orderBy(asc(indexerSchema.dataSets.dataSetId))
+    .orderBy(asc(schema.dataSets.dataSetId))
 
   const groups: DataSetsByGroup = { cdn: null, ipfs: null, both: null, none: null }
 

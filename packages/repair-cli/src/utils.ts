@@ -12,7 +12,7 @@ import packageJson from '../package.json' with { type: 'json' }
 import * as schema from './local-schema.ts'
 import type { Config, Group, LocalDatabase } from './types.ts'
 
-export const EARLY_REPAIR_SOURCE = 'early-repair2'
+export const EARLY_REPAIR_SOURCE = 'early-repair5'
 
 export const config = new Conf<Config>({
   projectName: packageJson.name,
@@ -79,6 +79,7 @@ export const globalOptions = z.object({
 })
 
 export async function migrateLocalDatabase(db: LocalDatabase) {
+  // @ts-expect-error - db type needs fixing
   const result = await pushSQLiteSchema(schema, db)
   if (result.hasDataLoss) {
     throw new Error('Data loss detected during migration')
@@ -103,6 +104,12 @@ export function hashLink(hash: string, chain: Chain) {
   return link
 }
 
+/**
+ * Get the metadata for a group
+ *
+ * @param group - The group to get the metadata for
+ * @returns The metadata for the group
+ */
 export function getMetadataForGroup(group: Group): MetadataObject {
   switch (group) {
     case 'cdn':
@@ -129,6 +136,26 @@ export function getMetadataForGroup(group: Group): MetadataObject {
       throw new Error(`Invalid group: ${group}`)
   }
 }
+
+/**
+ * Get the flags for a group
+ *
+ * @param group - The group to get the flags for
+ * @returns The flags for the group
+ */
+export function groupFlags(group: Group): { withCdn: boolean; withIpfsIndexing: boolean } {
+  switch (group) {
+    case 'both':
+      return { withCdn: true, withIpfsIndexing: true }
+    case 'cdn':
+      return { withCdn: true, withIpfsIndexing: false }
+    case 'ipfs':
+      return { withCdn: false, withIpfsIndexing: true }
+    case 'none':
+      return { withCdn: false, withIpfsIndexing: false }
+  }
+}
+
 // JSON.stringify and JSON.parse with URL, Map and Uint8Array type support.
 
 /**

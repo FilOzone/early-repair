@@ -4,7 +4,7 @@ import { relations } from 'drizzle-orm'
 import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 import * as t from 'drizzle-orm/sqlite-core'
 import { customType, sqliteTable as table } from 'drizzle-orm/sqlite-core'
-import type { Address } from 'viem'
+import type { Address, Hash } from 'viem'
 import { parse, stringify } from './utils.ts'
 
 export type RepairStatus = 'pending' | 'completed' | 'failed'
@@ -15,18 +15,16 @@ export type OperationType = 'create_dataset' | 'add_piece'
 export type OperationGroup = 'cdn' | 'ipfs' | 'both' | 'none'
 
 export interface CreateDatasetOperationData {
-  serviceUrl: string
   payee: Address
 }
 
-export type CreateDatasetOperationResult = Omit<
-  SP.CreateDataSetSuccess,
-  'txStatus' | 'ok' | 'dataSetCreated' | 'service'
->
+export type CreateDatasetOperationResult = {
+  txHash?: Hash
+  dataSetId: bigint
+}
 
 export interface AddPieceOperationData {
   cid: string
-  serviceUrl: string
   metadata: MetadataObject
   alternateProviders: string[]
 }
@@ -53,14 +51,28 @@ export const jsonType = customType<{ data: Record<string, any> }>({
   },
 })
 
+export const bigintType = customType<{ data: bigint }>({
+  dataType() {
+    return 'text'
+  },
+  toDriver(value) {
+    return value.toString()
+  },
+  fromDriver(value) {
+    return BigInt(value as string)
+  },
+})
+
 export type InsertRepair = typeof repairs.$inferInsert
 export type SelectRepair = typeof repairs.$inferSelect
 
 export const repairs = table('repairs', {
   id: t.int().primaryKey({ autoIncrement: true }),
   status: t.text().$type<RepairStatus>().notNull().default('pending'),
-  repairProviderId: t.text('repair_provider_id').notNull(),
-  targetProviderId: t.text('target_provider_id').notNull(),
+  // TODO: change to bigint custom type
+  repairProviderId: bigintType('repair_provider_id').notNull(),
+  targetProviderId: bigintType('target_provider_id').notNull(),
+  targetProviderUrl: t.text('target_provider_url').notNull(),
   targetDataSets: jsonType('target_data_sets').$type<RepairTargetDataSets>().notNull(),
   createdAt: t.integer('created_at').notNull(),
   updatedAt: t.integer('updated_at').notNull(),

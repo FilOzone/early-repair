@@ -5,7 +5,7 @@ import { claimTokens, formatBalance, formatFraction, parseUnits } from '@filoz/s
 import { Cli, z } from 'incur'
 import { getBalance, waitForTransactionReceipt } from 'viem/actions'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
-import { getClient, globalOptions, hashLink } from '../utils.ts'
+import { globalOptions, hashLink } from '../utils.ts'
 
 export const wallet = Cli.create('wallet', {
   description: 'Wallet commands',

@@ -1,16 +1,16 @@
 import { and, eq } from 'drizzle-orm'
-import { type Group, type LocalDatabase, type LocalSchema, PIECE_GROUPS } from '../types.ts'
+import { type Group, type LocalDatabase, PIECE_GROUPS } from '../types.ts'
 
 export type GetRepairGroupsOptions = {
   localDb: LocalDatabase
-  localSchema: LocalSchema
   repairId: number
 }
 
 /**
  * List repair groups for a repair from pending `add_piece` operations in the local DB.
  */
-export async function getRepairGroups({ localDb, localSchema, repairId }: GetRepairGroupsOptions): Promise<Group[]> {
+export async function getRepairGroups({ localDb, repairId }: GetRepairGroupsOptions): Promise<Group[]> {
+  const localSchema = localDb._.fullSchema
   const operations = await localDb
     .selectDistinct({ group: localSchema.operations.group })
     .from(localSchema.operations)

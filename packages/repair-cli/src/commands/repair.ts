@@ -21,16 +21,11 @@ repair.command('create', {
   run: async (c) => {
     try {
       const { providerId, targetProviderId } = c.options
-      const { indexerDb, indexerSchema, localDb, localSchema, client } = c.var
 
       const repairId = await createRepair({
-        indexerDb,
-        indexerSchema,
-        localDb,
-        localSchema,
+        ...c.var,
         repairProviderId: providerId,
         targetProviderId,
-        payer: client.account.address,
       })
 
       return c.ok({
@@ -53,11 +48,12 @@ repair.command('list', {
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
+      const localSchema = c.var.localDb._.fullSchema
       const repairs = await c.var.localDb.query.repairs.findMany({
-        orderBy: [desc(c.var.localSchema.repairs.createdAt)],
+        orderBy: [desc(localSchema.repairs.createdAt)],
         with: {
           operations: {
-            where: eq(c.var.localSchema.operations.status, 'pending'),
+            where: eq(localSchema.operations.status, 'pending'),
           },
         },
       })
@@ -140,11 +136,9 @@ repair.command('run', {
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
+      const schema = c.var.localDb._.fullSchema
       const repair = await c.var.localDb.query.repairs.findFirst({
-        where: and(
-          eq(c.var.localSchema.repairs.id, c.args.repairId),
-          inArray(c.var.localSchema.repairs.status, ['pending'])
-        ),
+        where: and(eq(schema.repairs.id, c.args.repairId), inArray(schema.repairs.status, ['pending'])),
       })
       if (!repair) {
         return c.error({
@@ -157,17 +151,16 @@ repair.command('run', {
       const concurrency = Math.max(1, c.options.concurrency)
       await runCreateDatasetsPhase({
         localDb: c.var.localDb,
-        localSchema: c.var.localSchema,
+        indexerDb: c.var.indexerDb,
         client: c.var.client,
-        repairId: c.args.repairId,
+        repair,
         concurrency,
         reset: c.options.reset,
       })
 
       await runPullPiecesPhase({
         localDb: c.var.localDb,
-        localSchema: c.var.localSchema,
-        repairId: c.args.repairId,
+        repair,
         concurrency,
         batchSize: c.options.batchSize,
         client: c.var.client,

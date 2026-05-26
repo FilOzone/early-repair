@@ -1,20 +1,16 @@
 import { eq } from 'drizzle-orm'
-import type { Address } from 'viem'
 import { NoAlternateProviderError, RepairCreationError } from '../error.ts'
 import type { RepairTargetDataSets } from '../local-schema.ts'
-import type { IndexerQueryOptions, LocalDatabase, LocalSchema } from '../types.ts'
+import type { Context } from '../types.ts'
 import { getDataSetsByGroup } from './get-datasets-by-group.ts'
 import { forEachPiecesPage } from './get-pieces.ts'
 import { getRepairGroups } from './get-repair-groups.ts'
 import { getRepairProvider } from './get-repair-provider.ts'
 import { selectAlternateRepairProvider } from './select-alternate-repair-provider.ts'
 
-export type CreateRepairOptions = IndexerQueryOptions & {
-  localDb: LocalDatabase
-  localSchema: LocalSchema
+export interface CreateRepairOptions extends Context {
   repairProviderId: bigint
   targetProviderId?: bigint
-  payer: Address
 }
 
 /**
@@ -24,28 +20,22 @@ export type CreateRepairOptions = IndexerQueryOptions & {
  * @param {CreateRepairOptions} options - The options for creating a repair.
  * @returns {Promise<number>} The ID of the created repair.
  */
-export async function createRepair({
-  indexerDb,
-  indexerSchema,
-  localDb,
-  localSchema,
-  repairProviderId,
-  targetProviderId,
-  payer,
-}: CreateRepairOptions): Promise<number> {
+export async function createRepair(options: CreateRepairOptions): Promise<number> {
+  const { indexerDb, localDb, repairProviderId, targetProviderId, client } = options
+  const localSchema = localDb._.fullSchema
+  const now = Date.now()
+
+  // Select the target provider
   if (targetProviderId != null && targetProviderId === repairProviderId) {
     throw new RepairCreationError('Target provider must differ from the provider being repaired')
   }
-
   const targetProvider = targetProviderId
     ? await getRepairProvider({
         indexerDb,
-        indexerSchema,
         providerId: targetProviderId,
       })
     : await selectAlternateRepairProvider({
         indexerDb,
-        indexerSchema,
         providerId: repairProviderId,
       })
 
@@ -53,13 +43,13 @@ export async function createRepair({
     throw new NoAlternateProviderError(targetProviderId)
   }
 
-  const now = Date.now()
-
+  // Create the repair row
   const [repair] = await localDb
     .insert(localSchema.repairs)
     .values({
-      repairProviderId: repairProviderId.toString(),
-      targetProviderId: targetProvider.providerId.toString(),
+      repairProviderId,
+      targetProviderId: targetProvider.providerId,
+      targetProviderUrl: targetProvider.serviceUrl,
       targetDataSets: {},
       createdAt: now,
       updatedAt: now,
@@ -68,13 +58,12 @@ export async function createRepair({
 
   if (!repair) throw new RepairCreationError()
 
+  // Add the pieces to the repair
   await forEachPiecesPage(
     {
       indexerDb,
-      indexerSchema,
       providerId: repairProviderId,
       repairId: repair.id,
-      serviceUrl: targetProvider.serviceUrl,
     },
     async (page) => {
       if (page.operations.length > 0) {
@@ -83,14 +72,13 @@ export async function createRepair({
     }
   )
 
-  console.log('Pieces added to repair')
-  const repairGroups = await getRepairGroups({ localDb, localSchema, repairId: repair.id })
+  // Get the repair groups
+  const repairGroups = await getRepairGroups({ localDb, repairId: repair.id })
   // Get the target datasets for the repair. If no dataset is found, a new one will be created.
   const dataSetsByGroup = await getDataSetsByGroup({
     indexerDb,
-    indexerSchema,
     providerId: targetProvider.providerId,
-    payer,
+    payer: client.account.address,
   })
 
   // Each group needs a target dataset before pieces can be added; queue missing datasets first.
@@ -107,7 +95,6 @@ export async function createRepair({
         group,
         status: 'pending',
         data: {
-          serviceUrl: targetProvider.serviceUrl,
           payee: targetProvider.providerAddress,
         },
         createdAt: now,

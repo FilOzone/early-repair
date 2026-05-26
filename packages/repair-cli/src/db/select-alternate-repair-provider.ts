@@ -1,21 +1,8 @@
 import { and, asc, eq, ne } from 'drizzle-orm'
-import type { Address } from 'viem'
-import type { IndexerQueryOptions } from '../types.ts'
+import type { Context, RepairProvider } from '../types.ts'
 
-export type SelectAlternateRepairProviderOptions = IndexerQueryOptions & {
+export interface SelectAlternateRepairProviderOptions extends Pick<Context, 'indexerDb'> {
   providerId: bigint
-}
-
-/**
- * Provider details used for repair selection and CID replica lookup.
- */
-export type RepairProvider = {
-  providerId: bigint
-  providerAddress: Address
-  name: string
-  serviceUrl: string
-  approved: boolean
-  endorsed: boolean
 }
 
 type ProviderTier = 'endorsed' | 'approved' | 'none'
@@ -47,38 +34,38 @@ function fallbackTiersFor(preferredTier: ProviderTier): ProviderTier[] {
  */
 export async function selectAlternateRepairProvider({
   indexerDb,
-  indexerSchema,
   providerId,
 }: SelectAlternateRepairProviderOptions): Promise<RepairProvider | null> {
+  const schema = indexerDb._.fullSchema
   const [source] = await indexerDb
     .select({
-      approved: indexerSchema.providers.approved,
-      endorsed: indexerSchema.providers.endorsed,
+      approved: schema.providers.approved,
+      endorsed: schema.providers.endorsed,
     })
-    .from(indexerSchema.providers)
-    .where(eq(indexerSchema.providers.providerId, providerId))
+    .from(schema.providers)
+    .where(eq(schema.providers.providerId, providerId))
     .limit(1)
 
   if (!source) return null
 
   const candidates = await indexerDb
     .select({
-      providerId: indexerSchema.providers.providerId,
-      providerAddress: indexerSchema.providers.providerAddress,
-      name: indexerSchema.providers.name,
-      serviceUrl: indexerSchema.providers.serviceUrl,
-      approved: indexerSchema.providers.approved,
-      endorsed: indexerSchema.providers.endorsed,
+      providerId: schema.providers.providerId,
+      providerAddress: schema.providers.providerAddress,
+      name: schema.providers.name,
+      serviceUrl: schema.providers.serviceUrl,
+      approved: schema.providers.approved,
+      endorsed: schema.providers.endorsed,
     })
-    .from(indexerSchema.providers)
+    .from(schema.providers)
     .where(
       and(
-        ne(indexerSchema.providers.providerId, providerId),
-        eq(indexerSchema.providers.providerActive, true),
-        eq(indexerSchema.providers.pdpProductActive, true)
+        ne(schema.providers.providerId, providerId),
+        eq(schema.providers.providerActive, true),
+        eq(schema.providers.pdpProductActive, true)
       )
     )
-    .orderBy(asc(indexerSchema.providers.providerId))
+    .orderBy(asc(schema.providers.providerId))
 
   if (candidates.length === 0) return null
 

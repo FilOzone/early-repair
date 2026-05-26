@@ -1,8 +1,7 @@
 import { and, eq } from 'drizzle-orm'
-import type { IndexerQueryOptions } from '../types.ts'
-import type { RepairProvider } from './select-alternate-repair-provider.ts'
+import type { Context, RepairProvider } from '../types.ts'
 
-export type GetRepairProviderOptions = IndexerQueryOptions & {
+export interface GetRepairProviderOptions extends Pick<Context, 'indexerDb'> {
   providerId: bigint
 }
 
@@ -11,24 +10,24 @@ export type GetRepairProviderOptions = IndexerQueryOptions & {
  */
 export async function getRepairProvider({
   indexerDb,
-  indexerSchema,
   providerId,
 }: GetRepairProviderOptions): Promise<RepairProvider | null> {
+  const schema = indexerDb._.fullSchema
   const [provider] = await indexerDb
     .select({
-      providerId: indexerSchema.providers.providerId,
-      providerAddress: indexerSchema.providers.providerAddress,
-      name: indexerSchema.providers.name,
-      serviceUrl: indexerSchema.providers.serviceUrl,
-      approved: indexerSchema.providers.approved,
-      endorsed: indexerSchema.providers.endorsed,
+      providerId: schema.providers.providerId,
+      providerAddress: schema.providers.providerAddress,
+      name: schema.providers.name,
+      serviceUrl: schema.providers.serviceUrl,
+      approved: schema.providers.approved,
+      endorsed: schema.providers.endorsed,
     })
-    .from(indexerSchema.providers)
+    .from(schema.providers)
     .where(
       and(
-        eq(indexerSchema.providers.providerId, providerId),
-        eq(indexerSchema.providers.providerActive, true),
-        eq(indexerSchema.providers.pdpProductActive, true)
+        eq(schema.providers.providerId, providerId),
+        eq(schema.providers.providerActive, true),
+        eq(schema.providers.pdpProductActive, true)
       )
     )
     .limit(1)

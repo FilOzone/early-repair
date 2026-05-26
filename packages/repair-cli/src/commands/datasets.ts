@@ -16,12 +16,13 @@ datasets.command('list', {
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
+      const schema = c.var.indexerDb._.fullSchema
       const conditions = [
-        eq(c.var.indexerSchema.dataSets.deleted, false),
-        eq(c.var.indexerSchema.dataSets.payer, c.var.client.account.address.toLowerCase()),
+        eq(schema.dataSets.deleted, false),
+        eq(schema.dataSets.payer, c.var.client.account.address.toLowerCase()),
       ]
       if (c.options.providerId != null) {
-        conditions.push(eq(c.var.indexerSchema.dataSets.providerId, c.options.providerId))
+        conditions.push(eq(schema.dataSets.providerId, c.options.providerId))
       }
 
       const datasets = await c.var.indexerDb.query.dataSets.findMany({

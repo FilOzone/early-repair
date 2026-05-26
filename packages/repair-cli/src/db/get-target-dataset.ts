@@ -1,19 +1,22 @@
 import { getDataSet } from '@filoz/synapse-core/warm-storage'
 import { eq } from 'drizzle-orm'
 import { MissingRepairDataSetError, RepairNotFoundError } from '../error.ts'
-import type { Group, LocalDatabase, LocalSchema, WalletClient } from '../types.ts'
+import type { Group, LocalDatabase, WalletClient } from '../types.ts'
 
 const targetDatasetCache = new Map<number, Map<Group, getDataSet.OutputType>>()
 
+/**
+ * Get the target dataset for a given repair group.
+ *
+ * @param options - The options for getting the target dataset.
+ */
 export async function getTargetDataset({
   localDb,
-  localSchema,
   repairId,
   group,
   client,
 }: {
   localDb: LocalDatabase
-  localSchema: LocalSchema
   repairId: number
   group: Group
   client: WalletClient
@@ -24,7 +27,7 @@ export async function getTargetDataset({
   }
 
   const repair = await localDb.query.repairs.findFirst({
-    where: eq(localSchema.repairs.id, repairId),
+    where: eq(localDb._.fullSchema.repairs.id, repairId),
     columns: { targetDataSets: true },
   })
   if (!repair) {

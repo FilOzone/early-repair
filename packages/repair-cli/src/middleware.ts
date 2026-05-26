@@ -11,8 +11,6 @@ import { config, getClient } from './utils.ts'
 export const contextSchema = z.object({
   indexerDb: z.custom<IndexerDatabase>(),
   localDb: z.custom<LocalDatabase>(),
-  indexerSchema: z.custom<typeof indexerSchema>(),
-  localSchema: z.custom<typeof localSchema>(),
   config: z.custom<typeof config>(),
   client: z.custom<Client<Transport, Chain, Account>>(),
   chain: z.custom<Chain>(),
@@ -30,8 +28,6 @@ export const contextMiddleware = middleware<typeof contextSchema>(async (c, next
   const { client, chain } = getClient(chainId)
   c.set('localDb', localDb)
   c.set('indexerDb', indexerDb)
-  c.set('indexerSchema', indexerSchema)
-  c.set('localSchema', localSchema)
   c.set('config', config)
   c.set('client', client)
   c.set('chain', chain)

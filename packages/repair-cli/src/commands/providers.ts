@@ -15,18 +15,15 @@ providers.command('list', {
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
+      const schema = c.var.indexerDb._.fullSchema
       const rows = await c.var.indexerDb.query.providers.findMany({
-        orderBy: [asc(c.var.indexerSchema.providers.providerId)],
-        where: and(
-          eq(c.var.indexerSchema.providers.providerActive, true),
-          eq(c.var.indexerSchema.providers.pdpProductActive, true)
-        ),
+        orderBy: [asc(schema.providers.providerId)],
+        where: and(eq(schema.providers.providerActive, true), eq(schema.providers.pdpProductActive, true)),
       })
 
       const providersFlattened = rows.map((provider) => ({
         id: provider.providerId,
         name: provider.name,
-        serviceUrl: provider.serviceUrl,
         approved: provider.approved,
         endorsed: provider.endorsed,
       }))

@@ -2,11 +2,12 @@ import type { Chain } from '@filoz/synapse-core/chains'
 import type { Client } from '@libsql/client'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
+import type { z } from 'incur'
 import type { Pool } from 'pg'
-import type { Account, Hex, Transport, Client as ViemClient } from 'viem'
+import type { Account, Address, Hex, Transport, Client as ViemClient } from 'viem'
 import type * as indexerSchema from './indexer-schema.ts'
 import type * as localSchema from './local-schema.ts'
-
+import type { contextSchema } from './middleware.ts'
 export type LocalDatabase = LibSQLDatabase<typeof localSchema> & {
   $client: Client
 }
@@ -23,15 +24,22 @@ export interface Config {
   dbPath: string
 }
 
-export type IndexerSchema = typeof indexerSchema
-export type LocalSchema = typeof localSchema
 export type WalletClient = ViemClient<Transport, Chain, Account>
 
 export type Group = 'cdn' | 'ipfs' | 'both' | 'none'
 
 export const PIECE_GROUPS = ['cdn', 'ipfs', 'both', 'none'] as const satisfies readonly Group[]
 
-export type IndexerQueryOptions = {
-  indexerDb: IndexerDatabase
-  indexerSchema: IndexerSchema
+export type Context = z.infer<typeof contextSchema>
+
+/**
+ * Provider details used for repair selection and CID replica lookup.
+ */
+export type RepairProvider = {
+  providerId: bigint
+  providerAddress: Address
+  name: string
+  serviceUrl: string
+  approved: boolean
+  endorsed: boolean
 }
