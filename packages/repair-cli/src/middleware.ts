@@ -1,12 +1,10 @@
 import type { Chain } from '@filoz/synapse-core/chains'
-import { drizzle as drizzleLibsql } from 'drizzle-orm/libsql'
 import { drizzle as drizzlePostgres } from 'drizzle-orm/node-postgres'
 import { middleware, z } from 'incur'
 import type { Account, Client, Transport } from 'viem'
 import * as indexerSchema from './indexer-schema.ts'
-import * as localSchema from './local-schema.ts'
 import type { IndexerDatabase, LocalDatabase } from './types.ts'
-import { config, getClient } from './utils.ts'
+import { config, createLocalDatabase, getClient } from './utils.ts'
 
 export const contextSchema = z.object({
   indexerDb: z.custom<IndexerDatabase>(),
@@ -18,9 +16,7 @@ export const contextSchema = z.object({
 
 export const contextMiddleware = middleware<typeof contextSchema>(async (c, next) => {
   const { dbPath, chainId, indexerMainnetUrl, indexerCalibrationUrl } = config.store
-  const localDb = drizzleLibsql(`file:${dbPath}`, {
-    schema: localSchema,
-  })
+  const localDb = await createLocalDatabase(dbPath)
   const indexerDb = drizzlePostgres(chainId === 314 ? indexerMainnetUrl : indexerCalibrationUrl, {
     schema: indexerSchema,
   })

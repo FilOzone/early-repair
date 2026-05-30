@@ -34,7 +34,7 @@ export async function getTargetDataset({
     throw new RepairNotFoundError(repairId)
   }
 
-  if (!repair.targetDataSets[group]) {
+  if (repair.targetDataSets[group] == null) {
     throw new MissingRepairDataSetError(group)
   }
 

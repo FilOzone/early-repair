@@ -1,21 +1,13 @@
 import { and, asc, eq } from 'drizzle-orm'
 import type { Address } from 'viem'
-import type { Group, IndexerDatabase } from '../types.ts'
-import { EARLY_REPAIR_SOURCE, groupFlags } from '../utils.ts'
+import type { DataSetForGroup, Group, IndexerDatabase } from '../types.ts'
+import { EARLY_REPAIR_SOURCE, flagsFromGroup } from '../utils.ts'
 
 export type GetDatasetForGroupOptions = {
   indexerDb: IndexerDatabase
   providerId: bigint
   payer: Address
   group: Group
-}
-
-export type DataSetForGroup = {
-  dataSetId: bigint
-  withCdn: boolean
-  withIpfsIndexing: boolean
-  payer: string
-  source: string | null
 }
 
 /**
@@ -30,7 +22,7 @@ export async function getDatasetForGroup({
   group,
 }: GetDatasetForGroupOptions): Promise<DataSetForGroup | null> {
   const schema = indexerDb._.fullSchema
-  const { withCdn, withIpfsIndexing } = groupFlags(group)
+  const { withCdn, withIpfsIndexing } = flagsFromGroup(group)
 
   const [row] = await indexerDb
     .select({

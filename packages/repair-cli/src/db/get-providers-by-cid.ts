@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, notInArray } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, notInArray, or } from 'drizzle-orm'
 import type { IndexerDatabase, RepairProvider } from '../types.ts'
 
 export type GetProvidersByCidOptions = {
@@ -15,8 +15,9 @@ export type ProvidersByCid = Record<string, RepairProvider[]>
 /**
  * Find alternate providers for each CID, excluding the given provider IDs.
  *
- * Deleted datasets and removed pieces are ignored. Every requested CID is present in
- * the result; CIDs with no alternate providers map to an empty array.
+ * Deleted datasets and removed pieces are ignored. Only approved or endorsed providers are
+ * included. Every requested CID is present in the result; CIDs with no alternate providers
+ * map to an empty array.
  */
 export async function getProvidersByCid({
   indexerDb,
@@ -30,7 +31,9 @@ export async function getProvidersByCid({
   const filters = [
     inArray(schema.pieces.cid, [...cids]),
     eq(schema.dataSets.deleted, false),
+    isNull(schema.dataSets.pdpEndEpoch),
     eq(schema.pieces.removed, false),
+    or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true)),
   ]
   if (excludedProviderIds.length > 0) {
     filters.push(notInArray(schema.dataSets.providerId, [...excludedProviderIds]))

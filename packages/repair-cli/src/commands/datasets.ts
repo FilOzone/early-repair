@@ -9,7 +9,7 @@ export const datasets = Cli.create('datasets', {
 })
 
 datasets.command('list', {
-  description: 'List all datasets',
+  description: 'List all datasets owned by the repair wallet',
   options: globalOptions.extend({
     providerId: z.coerce.bigint().optional().describe('Filter datasets by provider ID'),
   }),

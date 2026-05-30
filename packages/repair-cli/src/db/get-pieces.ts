@@ -1,6 +1,8 @@
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, isNull } from 'drizzle-orm'
+import pMap from 'p-map'
 import type { InsertOperation } from '../local-schema.ts'
 import type { Group, IndexerDatabase } from '../types.ts'
+import { findPieceOnProviders, groupFromFlags } from '../utils.ts'
 import { getProvidersByCid } from './get-providers-by-cid.ts'
 
 /** Default page size when paginating pieces from the indexer. */
@@ -26,7 +28,7 @@ export type GetPiecesPageOptions = {
 
 /** Result of a single {@link getPiecesPage} call. */
 export type GetPiecesPageResult = {
-  /** `add_piece` operations ready to insert for this page (may include `failed` rows). */
+  /** `add_piece` operations ready to insert for this page (may include `skipped` rows). */
   operations: InsertOperation[]
   /** Whether another indexer page may exist after this one. */
   hasMore: boolean
@@ -43,18 +45,6 @@ type PieceForOperation = {
   cid: string
   metadata: Record<string, string> | null
   group: Group
-}
-
-/**
- * Map dataset CDN/IPFS flags to a mutually exclusive repair group.
- *
- * `both` requires both flags; `cdn` and `ipfs` require only that flag; `none` requires neither.
- */
-function pieceGroupFromFlags(withCdn: boolean, withIpfsIndexing: boolean): Group {
-  if (withCdn && withIpfsIndexing) return 'both'
-  if (withCdn) return 'cdn'
-  if (withIpfsIndexing) return 'ipfs'
-  return 'none'
 }
 
 /** Empty per-group CID sets for starting a paginated piece walk. */
@@ -102,6 +92,7 @@ export async function getPiecesPage({
       and(
         eq(schema.dataSets.providerId, providerId),
         eq(schema.dataSets.deleted, false),
+        isNull(schema.dataSets.pdpEndEpoch),
         eq(schema.pieces.removed, false)
       )
     )
@@ -113,7 +104,7 @@ export async function getPiecesPage({
   const pieces: PieceForOperation[] = []
 
   for (const { cid, metadata, withCdn, withIpfsIndexing } of rows) {
-    const group = pieceGroupFromFlags(withCdn, withIpfsIndexing)
+    const group = groupFromFlags(withCdn, withIpfsIndexing)
     // Same CID can appear on multiple datasets in one group; only repair it once per group.
     if (seenCidsByGroup[group].has(cid)) continue
     seenCidsByGroup[group].add(cid)
@@ -125,29 +116,43 @@ export async function getPiecesPage({
   const providersByCid = await getProvidersByCid({
     indexerDb,
     cids: pieces.map((piece) => piece.cid),
-    excludedProviderIds: [providerId],
+    excludedProviderIds: [],
   })
 
-  const operations: InsertOperation[] = pieces.map(({ cid, metadata, group }) => {
-    const alternateProviders = providersByCid[cid]?.map((provider) => provider.serviceUrl) ?? []
-    const hasAlternates = alternateProviders.length > 0
+  const operations: InsertOperation[] = await pMap(
+    pieces,
+    async ({ cid, metadata, group }) => {
+      const alternateProviders = providersByCid[cid]?.map((provider) => provider.serviceUrl) ?? []
+      let skippedMessage = 'No alternate providers found'
+      let validProvider: string | undefined
+      if (alternateProviders.length > 0) {
+        validProvider = await findPieceOnProviders(alternateProviders, cid)
 
-    return {
-      repairId,
-      type: 'add_piece',
-      group,
-      // Cannot pull without another replica; mark failed up front so run skips these ops.
-      status: hasAlternates ? 'pending' : 'skipped',
-      data: {
-        cid,
-        metadata: metadata ?? {},
-        alternateProviders,
-      },
-      error: hasAlternates ? undefined : 'No alternate providers found',
-      createdAt: now,
-      updatedAt: now,
-    }
-  })
+        if (!validProvider) {
+          skippedMessage = `Found ${alternateProviders.length} alternate providers, but none are valid. ${alternateProviders.join(', ')}`
+        }
+      }
+
+      return {
+        repairId,
+        type: 'add_piece',
+        group,
+        // Cannot pull without another replica; mark failed up front so run skips these ops.
+        status: validProvider ? 'pending' : 'skipped',
+        data: {
+          cid,
+          metadata: metadata ?? {},
+          alternateProviders: validProvider ? [validProvider] : [],
+        },
+        error: validProvider ? undefined : skippedMessage,
+        createdAt: now,
+        updatedAt: now,
+      }
+    },
+    { concurrency: 20 }
+  )
+
+  // )
 
   return {
     operations,

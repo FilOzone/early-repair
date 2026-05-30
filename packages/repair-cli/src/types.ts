@@ -43,3 +43,11 @@ export type RepairProvider = {
   approved: boolean
   endorsed: boolean
 }
+
+export type DataSetForGroup = {
+  dataSetId: bigint
+  withCdn: boolean
+  withIpfsIndexing: boolean
+  payer: string
+  source: string | null
+}

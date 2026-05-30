@@ -1,7 +1,15 @@
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, count, eq, inArray, isNull, or, sum } from 'drizzle-orm'
 import { Cli, z } from 'incur'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
 import { globalOptions } from '../utils.ts'
+
+/** Format byte count as decimal gigabytes with two fractional digits. */
+function formatBytesAsGb(bytes: bigint): string {
+  const scaled = (bytes * 100n) / 1_000_000_000n
+  const whole = scaled / 100n
+  const fraction = scaled % 100n
+  return `${whole}.${fraction.toString().padStart(2, '0')} GB`
+}
 
 export const providers = Cli.create('providers', {
   description: 'Provider commands',
@@ -18,15 +26,55 @@ providers.command('list', {
       const schema = c.var.indexerDb._.fullSchema
       const rows = await c.var.indexerDb.query.providers.findMany({
         orderBy: [asc(schema.providers.providerId)],
-        where: and(eq(schema.providers.providerActive, true), eq(schema.providers.pdpProductActive, true)),
+        where: and(
+          eq(schema.providers.providerActive, true),
+          eq(schema.providers.pdpProductActive, true),
+          or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true))
+        ),
       })
 
-      const providersFlattened = rows.map((provider) => ({
-        id: provider.providerId,
-        name: provider.name,
-        approved: provider.approved,
-        endorsed: provider.endorsed,
-      }))
+      const providerIds = rows.map((provider) => provider.providerId)
+      const statsByProviderId = new Map<bigint, { pieceCount: number; totalSize: bigint }>()
+
+      if (providerIds.length > 0) {
+        const stats = await c.var.indexerDb
+          .select({
+            providerId: schema.dataSets.providerId,
+            pieceCount: count(schema.pieces.pieceId),
+            totalSize: sum(schema.pieces.rawSize),
+          })
+          .from(schema.pieces)
+          .innerJoin(schema.dataSets, eq(schema.pieces.dataSetId, schema.dataSets.dataSetId))
+          .where(
+            and(
+              inArray(schema.dataSets.providerId, providerIds),
+              eq(schema.dataSets.deleted, false),
+              isNull(schema.dataSets.pdpEndEpoch),
+              eq(schema.pieces.removed, false)
+            )
+          )
+          .groupBy(schema.dataSets.providerId)
+
+        for (const stat of stats) {
+          statsByProviderId.set(stat.providerId, {
+            pieceCount: stat.pieceCount,
+            totalSize: stat.totalSize == null ? 0n : BigInt(stat.totalSize),
+          })
+        }
+      }
+
+      const providersFlattened = rows.map((provider) => {
+        const stats = statsByProviderId.get(provider.providerId)
+        return {
+          id: provider.providerId,
+          name: provider.name,
+          serviceUrl: provider.serviceUrl,
+          approved: provider.approved,
+          endorsed: provider.endorsed,
+          pieceCount: stats?.pieceCount ?? 0,
+          totalSize: formatBytesAsGb(stats?.totalSize ?? 0n),
+        }
+      })
 
       return c.ok({
         providers: providersFlattened,

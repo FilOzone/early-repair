@@ -5,9 +5,10 @@ import { providers } from './commands/providers.ts'
 import { repair } from './commands/repair.ts'
 import { setup } from './commands/setup.ts'
 import { wallet } from './commands/wallet.ts'
+import { version } from './utils.ts'
 
 const cli = Cli.create('repair', {
-  version: '0.0.0',
+  version,
   description: 'Early repair for faulty service providers and datasets',
 })
 

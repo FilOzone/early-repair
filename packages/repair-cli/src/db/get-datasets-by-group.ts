@@ -1,7 +1,7 @@
-import { and, asc, eq } from 'drizzle-orm'
+import { and, asc, eq, isNull } from 'drizzle-orm'
 import type { Address } from 'viem'
-import type { Group, IndexerDatabase } from '../types.ts'
-import { EARLY_REPAIR_SOURCE } from '../utils.ts'
+import type { DataSetForGroup, IndexerDatabase } from '../types.ts'
+import { EARLY_REPAIR_SOURCE, groupFromFlags } from '../utils.ts'
 
 export type GetDataSetsByGroupOptions = {
   indexerDb: IndexerDatabase
@@ -9,26 +9,11 @@ export type GetDataSetsByGroupOptions = {
   payer: Address
 }
 
-export type DataSetForGroup = {
-  dataSetId: bigint
-  withCdn: boolean
-  withIpfsIndexing: boolean
-  payer: string
-  source: string | null
-}
-
 export interface DataSetsByGroup {
   cdn: DataSetForGroup | null
   ipfs: DataSetForGroup | null
   both: DataSetForGroup | null
   none: DataSetForGroup | null
-}
-
-function pieceGroupFromFlags(withCdn: boolean, withIpfsIndexing: boolean): Group {
-  if (withCdn && withIpfsIndexing) return 'both'
-  if (withCdn) return 'cdn'
-  if (withIpfsIndexing) return 'ipfs'
-  return 'none'
 }
 
 /**
@@ -57,6 +42,7 @@ export async function getDataSetsByGroup({
       and(
         eq(schema.dataSets.providerId, providerId),
         eq(schema.dataSets.deleted, false),
+        isNull(schema.dataSets.pdpEndEpoch),
         eq(schema.dataSets.payer, payer.toLowerCase()),
         eq(schema.dataSets.source, EARLY_REPAIR_SOURCE)
       )
@@ -66,7 +52,7 @@ export async function getDataSetsByGroup({
   const groups: DataSetsByGroup = { cdn: null, ipfs: null, both: null, none: null }
 
   for (const row of rows) {
-    const group = pieceGroupFromFlags(row.withCdn, row.withIpfsIndexing)
+    const group = groupFromFlags(row.withCdn, row.withIpfsIndexing)
     if (groups[group]) continue
     groups[group] = row
   }

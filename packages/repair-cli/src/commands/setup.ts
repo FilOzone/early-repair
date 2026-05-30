@@ -1,11 +1,9 @@
 import * as p from '@clack/prompts'
-import { drizzle } from 'drizzle-orm/libsql'
 import { Cli, z } from 'incur'
 import path from 'path'
 import type { Hash } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import type * as schema from '../local-schema.ts'
-import { config, globalOptions, migrateLocalDatabase } from '../utils.ts'
+import { config, createLocalDatabase, globalOptions, migrateLocalDatabase } from '../utils.ts'
 
 function validatePostgresUrl(value: string) {
   let url: URL
@@ -124,7 +122,7 @@ export const setup = Cli.create('setup', {
       config.set('dbPath', dbPath)
 
       // setup database
-      const db = drizzle<typeof schema>(`file:${dbPath}`)
+      const db = await createLocalDatabase(dbPath)
       await migrateLocalDatabase(db)
 
       const account = privateKeyToAccount(pk as Hash)

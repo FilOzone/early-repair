@@ -1,4 +1,5 @@
 /** biome-ignore-all lint/suspicious/noConsole: cli */
+import { calibration } from '@filoz/synapse-core/chains'
 import * as ERC20 from '@filoz/synapse-core/erc20'
 import * as Pay from '@filoz/synapse-core/pay'
 import { claimTokens, formatBalance, formatFraction, parseUnits } from '@filoz/synapse-core/utils'
@@ -18,6 +19,13 @@ wallet.command('fund', {
   middleware: [contextMiddleware],
   async *run(c) {
     const { client, chain } = c.var
+
+    if (chain.id !== calibration.id) {
+      return c.error({
+        code: 'INVALID_CHAIN',
+        message: `Wallet fund is only available on Filecoin Calibration (chain ID ${calibration.id})`,
+      })
+    }
 
     yield 'Funding wallet...'
     try {

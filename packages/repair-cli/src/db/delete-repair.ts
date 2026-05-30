@@ -30,10 +30,8 @@ export async function deleteRepair({ localDb, repairId }: DeleteRepairOptions): 
     return { deleted: false, operationsDeleted: 0 }
   }
 
-  const operationsDeleted = repair.operations.length
-
   await localDb.delete(localSchema.operations).where(eq(localSchema.operations.repairId, repairId))
-  await localDb.delete(localSchema.repairs).where(eq(localSchema.repairs.id, repairId))
+  const deleted = await localDb.delete(localSchema.repairs).where(eq(localSchema.repairs.id, repairId))
 
-  return { deleted: true, operationsDeleted }
+  return { deleted: true, operationsDeleted: deleted.rowsAffected }
 }
