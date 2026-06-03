@@ -22,7 +22,8 @@ catalog:
 
 minimumReleaseAge: 10080
 
-minimumReleaseAgeExclude: []
+minimumReleaseAgeExclude: 
+  - iso-base
 
 trustPolicy: no-downgrade
 

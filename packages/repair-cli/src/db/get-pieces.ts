@@ -1,8 +1,8 @@
-import { and, asc, eq, isNull } from 'drizzle-orm'
+import { and, asc, eq, lte } from 'drizzle-orm'
 import pMap from 'p-map'
 import type { InsertOperation } from '../local-schema.ts'
-import type { Group, IndexerDatabase } from '../types.ts'
-import { findPieceOnProviders, groupFromFlags } from '../utils.ts'
+import type { IndexerDatabase } from '../types.ts'
+import { findPieceOnProviders } from '../utils.ts'
 import { getProvidersByCid } from './get-providers-by-cid.ts'
 
 /** Default page size when paginating pieces from the indexer. */
@@ -15,15 +15,17 @@ export type GetPiecesPageOptions = {
   providerId: bigint
   /** Local repair row to attach operations to. */
   repairId: number
+  /** Chain block number captured when the repair was created. */
+  blockNumber: bigint
   /** Max indexer rows per page. Defaults to {@link DEFAULT_PIECES_PAGE_SIZE}. */
   limit?: number
   /** SQL offset for the indexer query. */
   offset?: number
   /**
-   * CIDs already emitted per group across prior pages. Pass the value returned from
-   * the previous call so the same CID is not queued twice when it appears in multiple datasets.
+   * CIDs already emitted across prior pages. Pass the value returned from the previous call
+   * so the same CID is not queued twice when it appears in multiple source datasets.
    */
-  seenCidsByGroup?: Record<Group, Set<string>>
+  seenCids?: Set<string>
 }
 
 /** Result of a single {@link getPiecesPage} call. */
@@ -34,38 +36,32 @@ export type GetPiecesPageResult = {
   hasMore: boolean
   /** Offset to pass as `offset` on the next page. */
   nextOffset: number
-  /** Updated dedupe sets; pass into the next {@link getPiecesPage} call. */
-  seenCidsByGroup: Record<Group, Set<string>>
+  /** Updated dedupe set; pass into the next {@link getPiecesPage} call. */
+  seenCids: Set<string>
 }
 
 /** Options for {@link forEachPiecesPage}; pagination state is managed internally. */
-export type ForEachPiecesPageOptions = Omit<GetPiecesPageOptions, 'offset' | 'seenCidsByGroup'>
+export type ForEachPiecesPageOptions = Omit<GetPiecesPageOptions, 'offset' | 'seenCids'>
 
 type PieceForOperation = {
   cid: string
   metadata: Record<string, string> | null
-  group: Group
 }
 
-/** Empty per-group CID sets for starting a paginated piece walk. */
-export function emptySeenCidsByGroup(): Record<Group, Set<string>> {
-  return {
-    cdn: new Set(),
-    ipfs: new Set(),
-    both: new Set(),
-    none: new Set(),
-  }
+/** Empty CID set for starting a paginated piece walk. */
+export function emptySeenCids(): Set<string> {
+  return new Set()
 }
 
 /**
- * Fetch one page of active pieces for a provider and map them to `add_piece` operations.
+ * Fetch one page of pieces for a provider at the repair block and map them to `add_piece` operations.
  *
- * Pieces are read from the indexer in stable dataset/piece order. Within each page, CIDs are
- * deduped per repair group so a piece stored under multiple datasets of the same group is only
- * queued once. Alternate providers (excluding the source provider) are resolved in one batch per
- * page; operations without alternates are inserted as `failed` with a descriptive error.
+ * Pieces are read from the indexer in stable dataset/piece order. CIDs are deduped globally so a
+ * piece stored under multiple source datasets is queued once into the single IPFS repair dataset.
+ * Alternate providers are resolved in one batch per page; operations without alternates are
+ * inserted as `skipped` with a descriptive error.
  *
- * Pass `seenCidsByGroup` and `nextOffset` from the prior result to continue pagination.
+ * Pass `seenCids` and `nextOffset` from the prior result to continue pagination.
  *
  * @param options - Indexer connection, repair context, and optional pagination state.
  * @returns Operations for this page plus pagination cursors.
@@ -74,17 +70,16 @@ export async function getPiecesPage({
   indexerDb,
   providerId,
   repairId,
+  blockNumber,
   limit = DEFAULT_PIECES_PAGE_SIZE,
   offset = 0,
-  seenCidsByGroup = emptySeenCidsByGroup(),
+  seenCids = emptySeenCids(),
 }: GetPiecesPageOptions): Promise<GetPiecesPageResult> {
   const schema = indexerDb._.fullSchema
   const rows = await indexerDb
     .select({
       cid: schema.pieces.cid,
       metadata: schema.pieces.metadata,
-      withCdn: schema.dataSets.withCdn,
-      withIpfsIndexing: schema.dataSets.withIpfsIndexing,
     })
     .from(schema.pieces)
     .innerJoin(schema.dataSets, eq(schema.pieces.dataSetId, schema.dataSets.dataSetId))
@@ -92,7 +87,7 @@ export async function getPiecesPage({
       and(
         eq(schema.dataSets.providerId, providerId),
         eq(schema.dataSets.deleted, false),
-        isNull(schema.dataSets.pdpEndEpoch),
+        lte(schema.dataSets.pdpEndEpoch, blockNumber),
         eq(schema.pieces.removed, false)
       )
     )
@@ -103,13 +98,12 @@ export async function getPiecesPage({
   const now = Date.now()
   const pieces: PieceForOperation[] = []
 
-  for (const { cid, metadata, withCdn, withIpfsIndexing } of rows) {
-    const group = groupFromFlags(withCdn, withIpfsIndexing)
-    // Same CID can appear on multiple datasets in one group; only repair it once per group.
-    if (seenCidsByGroup[group].has(cid)) continue
-    seenCidsByGroup[group].add(cid)
+  for (const { cid, metadata } of rows) {
+    // Same CID can appear on multiple source datasets; only repair it once.
+    if (seenCids.has(cid)) continue
+    seenCids.add(cid)
 
-    pieces.push({ cid, metadata, group })
+    pieces.push({ cid, metadata })
   }
 
   // Resolve pull sources in one query per page; exclude the provider being repaired from alternates.
@@ -117,11 +111,12 @@ export async function getPiecesPage({
     indexerDb,
     cids: pieces.map((piece) => piece.cid),
     excludedProviderIds: [],
+    blockNumber,
   })
 
   const operations: InsertOperation[] = await pMap(
     pieces,
-    async ({ cid, metadata, group }) => {
+    async ({ cid, metadata }) => {
       const alternateProviders = providersByCid[cid]?.map((provider) => provider.serviceUrl) ?? []
       let skippedMessage = 'No alternate providers found'
       let validProvider: string | undefined
@@ -136,8 +131,7 @@ export async function getPiecesPage({
       return {
         repairId,
         type: 'add_piece',
-        group,
-        // Cannot pull without another replica; mark failed up front so run skips these ops.
+        // Cannot pull without another replica; mark skipped up front so run skips these ops.
         status: validProvider ? 'pending' : 'skipped',
         data: {
           cid,
@@ -159,14 +153,14 @@ export async function getPiecesPage({
     // A full page means there may be more rows; a short page ends pagination.
     hasMore: rows.length === limit,
     nextOffset: offset + rows.length,
-    seenCidsByGroup,
+    seenCids,
   }
 }
 
 /**
  * Walk every page of `add_piece` operations for a provider, invoking `onPage` per batch.
  *
- * Manages `offset` and `seenCidsByGroup` across pages so callers only handle inserts.
+ * Manages `offset` and `seenCids` across pages so callers only handle inserts.
  *
  * @param options - Same inputs as {@link getPiecesPage} except pagination cursors.
  * @param onPage - Async handler for each page result (e.g. batch insert into local DB).
@@ -177,19 +171,19 @@ export async function forEachPiecesPage(
 ): Promise<void> {
   let offset = 0
   let hasMore = true
-  let seenCidsByGroup = emptySeenCidsByGroup()
+  let seenCids = emptySeenCids()
 
   while (hasMore) {
     const page = await getPiecesPage({
       ...options,
       offset,
-      seenCidsByGroup,
+      seenCids,
     })
 
     await onPage(page)
 
     offset = page.nextOffset
-    seenCidsByGroup = page.seenCidsByGroup
+    seenCids = page.seenCids
     hasMore = page.hasMore
   }
 }

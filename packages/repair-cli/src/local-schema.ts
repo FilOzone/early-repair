@@ -4,15 +4,13 @@ import { relations } from 'drizzle-orm'
 import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 import * as t from 'drizzle-orm/sqlite-core'
 import { customType, sqliteTable as table } from 'drizzle-orm/sqlite-core'
+import * as Json from 'iso-base/json'
 import type { Address, Hash } from 'viem'
-import { parse, stringify } from './utils.ts'
 
 export type RepairStatus = 'pending' | 'completed' | 'failed'
-export type RepairTargetDataSets = Partial<Record<OperationGroup, bigint | null>>
 
 export type OperationStatus = 'pending' | 'pulled' | 'committed' | 'completed' | 'failed' | 'skipped'
 export type OperationType = 'create_dataset' | 'add_piece'
-export type OperationGroup = 'cdn' | 'ipfs' | 'both' | 'none'
 
 export interface CreateDatasetOperationData {
   payee: Address
@@ -44,10 +42,10 @@ export const jsonType = customType<{ data: Record<string, any> }>({
     return 'text'
   },
   toDriver(value) {
-    return stringify(value)
+    return Json.stringify(value)
   },
   fromDriver(value) {
-    return parse(value as string)
+    return Json.parse(value as string)
   },
 })
 
@@ -69,11 +67,11 @@ export type SelectRepair = typeof repairs.$inferSelect
 export const repairs = table('repairs', {
   id: t.int().primaryKey({ autoIncrement: true }),
   status: t.text().$type<RepairStatus>().notNull().default('pending'),
-  // TODO: change to bigint custom type
   repairProviderId: bigintType('repair_provider_id').notNull(),
   targetProviderId: bigintType('target_provider_id').notNull(),
   targetProviderUrl: t.text('target_provider_url').notNull(),
-  targetDataSets: jsonType('target_data_sets').$type<RepairTargetDataSets>().notNull(),
+  targetDataSetId: bigintType('target_data_set_id'),
+  blockNumber: bigintType('block_number').notNull(),
   createdAt: t.integer('created_at').notNull(),
   updatedAt: t.integer('updated_at').notNull(),
 })
@@ -89,7 +87,6 @@ export const operations = table('operations', {
     .notNull(),
   type: t.text().$type<OperationType>().notNull(),
   status: t.text().$type<OperationStatus>().notNull().default('pending'),
-  group: t.text().$type<OperationGroup>().notNull(),
   data: jsonType().$type<OperationData>().notNull(),
   result: jsonType().$type<OperationResult>(),
   error: t.text(),

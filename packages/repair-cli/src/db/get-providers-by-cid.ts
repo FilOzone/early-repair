@@ -1,14 +1,15 @@
-import { and, asc, eq, inArray, isNull, notInArray, or } from 'drizzle-orm'
+import { and, asc, eq, inArray, lte, notInArray, or } from 'drizzle-orm'
 import type { IndexerDatabase, RepairProvider } from '../types.ts'
 
 export type GetProvidersByCidOptions = {
   indexerDb: IndexerDatabase
   cids: readonly string[]
   excludedProviderIds: readonly bigint[]
+  blockNumber: bigint
 }
 
 /**
- * Map of piece CID to providers that currently store that CID.
+ * Map of piece CID to providers that store that CID at the repair block.
  */
 export type ProvidersByCid = Record<string, RepairProvider[]>
 
@@ -23,6 +24,7 @@ export async function getProvidersByCid({
   indexerDb,
   cids,
   excludedProviderIds,
+  blockNumber,
 }: GetProvidersByCidOptions): Promise<ProvidersByCid> {
   const schema = indexerDb._.fullSchema
   const providersByCid = Object.fromEntries(cids.map((cid) => [cid, []])) as ProvidersByCid
@@ -31,7 +33,7 @@ export async function getProvidersByCid({
   const filters = [
     inArray(schema.pieces.cid, [...cids]),
     eq(schema.dataSets.deleted, false),
-    isNull(schema.dataSets.pdpEndEpoch),
+    lte(schema.dataSets.pdpEndEpoch, blockNumber),
     eq(schema.pieces.removed, false),
     or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true)),
   ]

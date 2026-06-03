@@ -1,56 +1,47 @@
 import { getDataSet } from '@filoz/synapse-core/warm-storage'
 import { eq } from 'drizzle-orm'
 import { MissingRepairDataSetError, RepairNotFoundError } from '../error.ts'
-import type { Group, LocalDatabase, WalletClient } from '../types.ts'
+import type { LocalDatabase, WalletClient } from '../types.ts'
 
-const targetDatasetCache = new Map<number, Map<Group, getDataSet.OutputType>>()
+const targetDatasetCache = new Map<number, getDataSet.OutputType>()
 
 /**
- * Get the target dataset for a given repair group.
+ * Get the single IPFS-enabled target dataset for a repair.
  *
  * @param options - The options for getting the target dataset.
  */
 export async function getTargetDataset({
   localDb,
   repairId,
-  group,
   client,
 }: {
   localDb: LocalDatabase
   repairId: number
-  group: Group
   client: WalletClient
 }) {
-  const cached = targetDatasetCache.get(repairId)?.get(group)
+  const cached = targetDatasetCache.get(repairId)
   if (cached) {
     return cached
   }
 
   const repair = await localDb.query.repairs.findFirst({
     where: eq(localDb._.fullSchema.repairs.id, repairId),
-    columns: { targetDataSets: true },
+    columns: { targetDataSetId: true },
   })
   if (!repair) {
     throw new RepairNotFoundError(repairId)
   }
 
-  if (repair.targetDataSets[group] == null) {
-    throw new MissingRepairDataSetError(group)
+  if (repair.targetDataSetId == null) {
+    throw new MissingRepairDataSetError()
   }
 
-  const dataSetId = repair.targetDataSets[group]
-
-  const dataSet = await getDataSet(client, { dataSetId })
+  const dataSet = await getDataSet(client, { dataSetId: repair.targetDataSetId })
   if (!dataSet) {
-    throw new MissingRepairDataSetError(group)
+    throw new MissingRepairDataSetError()
   }
 
-  let byGroup = targetDatasetCache.get(repairId)
-  if (!byGroup) {
-    byGroup = new Map()
-    targetDatasetCache.set(repairId, byGroup)
-  }
-  byGroup.set(group, dataSet)
+  targetDatasetCache.set(repairId, dataSet)
 
   return dataSet
 }

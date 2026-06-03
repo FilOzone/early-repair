@@ -15,7 +15,7 @@ repair.command('create', {
   description: 'Create a new repair',
   options: globalOptions.extend({
     providerId: z.coerce.bigint().describe('Provider ID to repair'),
-    targetProviderId: z.coerce.bigint().optional().describe('Target provider ID for repair'),
+    targetProviderId: z.coerce.bigint().describe('Target provider ID for repair'),
   }),
   middleware: [contextMiddleware],
   run: async (c) => {
@@ -32,6 +32,7 @@ repair.command('create', {
         repairId,
       })
     } catch (error) {
+      console.error(error)
       return c.error({
         code: 'REPAIR_FAILED',
         message: error instanceof Error ? error.message : 'Failed to repair the dataset',
@@ -65,7 +66,8 @@ repair.command('list', {
           repairProviderId: repairWithoutOperations.repairProviderId,
           targetProviderId: repairWithoutOperations.targetProviderId,
           targetProviderUrl: repairWithoutOperations.targetProviderUrl,
-          targetDataSets: repairWithoutOperations.targetDataSets,
+          targetDataSetId: repairWithoutOperations.targetDataSetId,
+          blockNumber: repairWithoutOperations.blockNumber,
           createdAt: new Date(repairWithoutOperations.createdAt).toISOString(),
           updatedAt: new Date(repairWithoutOperations.updatedAt).toISOString(),
           operations: operations.length,
@@ -130,7 +132,7 @@ repair.command('run', {
   }),
   options: globalOptions.extend({
     concurrency: z.coerce.number().default(4).describe('Concurrency level'),
-    batchSize: z.coerce.number().default(10).describe('Max add_piece operations per pull batch (same group)'),
+    batchSize: z.coerce.number().default(10).describe('Max add_piece operations per pull batch'),
     reset: z.boolean().default(false).describe('Reset the repair'),
   }),
   middleware: [contextMiddleware],
@@ -152,7 +154,6 @@ repair.command('run', {
       await runCreateDatasetsPhase({
         ...c.var,
         repair,
-        concurrency,
         reset: c.options.reset,
       })
 

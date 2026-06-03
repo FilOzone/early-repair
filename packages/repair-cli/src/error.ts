@@ -26,8 +26,8 @@ export class RepairNotFoundError extends Error {
 }
 
 export class MissingRepairDataSetError extends Error {
-  constructor(group: string) {
-    super(`Missing dataset ID for repair group: ${group}`)
+  constructor() {
+    super('Missing repair dataset ID')
     this.name = 'MissingRepairDataSetError'
   }
 }

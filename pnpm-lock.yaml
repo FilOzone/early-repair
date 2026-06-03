@@ -102,18 +102,27 @@ importers:
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.2.13)(@libsql/client@0.17.3)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(kysely@0.28.17)(pg@8.21.0)
-      fastq:
-        specifier: ^1.20.1
-        version: 1.20.1
       incur:
         specifier: ^0.4.6
         version: 0.4.6
+      iso-base:
+        specifier: ^4.4.0
+        version: 4.4.0
       iso-web:
         specifier: ^2.2.1
         version: 2.2.1
+      p-all:
+        specifier: ^5.0.1
+        version: 5.0.1
       p-locate:
         specifier: ^7.0.0
         version: 7.0.0
+      p-map:
+        specifier: ^7.0.4
+        version: 7.0.4
+      p-queue:
+        specifier: ^9.3.0
+        version: 9.3.0
       pg:
         specifier: ^8.21.0
         version: 8.21.0
@@ -1633,6 +1642,10 @@ packages:
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
+  bigint-mod-arith@3.3.1:
+    resolution: {integrity: sha512-pX/cYW3dCa87Jrzv6DAr8ivbbJRzEX5yGhdt8IutnX/PCIXfpx+mabWNK/M8qqh+zQ0J3thftUBHW0ByuUlG0w==}
+    engines: {node: '>=10.4.0'}
+
   binary-extensions@2.3.0:
     resolution: {integrity: sha512-Ceh+7ox5qe7LJuLHoY0feh3pHuUDHAcRUeyL2VYghZwfpkNIy/+8Ocg0a3UuSoYzavmylwuLWQOf3hl0jjMMIw==}
     engines: {node: '>=8'}
@@ -2419,6 +2432,9 @@ packages:
   isexe@2.0.0:
     resolution: {integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==}
 
+  iso-base@4.4.0:
+    resolution: {integrity: sha512-W4BJbRDBi66wcBFJ23ZlGnFOZ874CIut4y9PlsScMSYu7ckCX+MWNAaEoE0efTSYDoVEn1qy0FDVSjE8q0ieHw==}
+
   iso-kv@3.1.1:
     resolution: {integrity: sha512-yKTLmUCc8gl0MXJs3ZaTaNDgfG/2ROasZERKPa5aYY7Ks/eb8BvGfLHrC+t1cHxiRkogvaXulDP77ovwLKgLPg==}
 
@@ -2749,6 +2765,10 @@ packages:
       typescript:
         optional: true
 
+  p-all@5.0.1:
+    resolution: {integrity: sha512-LMT7WX9ZSaq3J1zjloApkIVmtz0ZdMFSIqbuiEa3txGYPLjUPOvgOPOx3nFjo+f37ZYL+1aY666I2SG7GVwLOA==}
+    engines: {node: '>=16'}
+
   p-finally@1.0.0:
     resolution: {integrity: sha512-LICb2p9CB7FS+0eR1oqWnHhp0FljGLZCWBE9aix0Uye9W8LTQPwMTYVGWQWIw9RdQiDg4+epXQODwIYJtSJaow==}
     engines: {node: '>=4'}
@@ -2769,8 +2789,16 @@ packages:
     resolution: {integrity: sha512-FRPW2lT1b/B8/CNkCOZ/Xl4mz52CWzwb+/dLa0GcCrH7u7djFf36VftuRJ5w/eCr1YXtbTGPuGoEDVSk14EwNQ==}
     engines: {node: '>=20'}
 
-  p-queue@9.2.0:
-    resolution: {integrity: sha512-dWgLE8AH0HjQ9fe74pUkKkvzzYT18Inp4zra3lKHnnwqGvcfcUBrvF2EAVX+envufDNBOzpPq/IBUONDbI7+3g==}
+  p-map@6.0.0:
+    resolution: {integrity: sha512-T8BatKGY+k5rU+Q/GTYgrEf2r4xRMevAN5mtXc2aPc4rS1j3s+vWTaO2Wag94neXuCAUAs8cxBL9EeB5EA6diw==}
+    engines: {node: '>=16'}
+
+  p-map@7.0.4:
+    resolution: {integrity: sha512-tkAQEw8ysMzmkhgw8k+1U/iPhWNhykKnSk4Rd5zLoPJCuJaGRPo6YposrZgaxHKzDHdDWWZvE/Sk7hsL2X/CpQ==}
+    engines: {node: '>=18'}
+
+  p-queue@9.3.0:
+    resolution: {integrity: sha512-7NED7xhQ74Ngp4JP/2e0VZHp7vSWfJfqeiR92jPgxsz6m0Se4P03YoTKa9dDXyZ3r6P616gUXttrB6nnHYKang==}
     engines: {node: '>=20'}
 
   p-retry@8.0.0:
@@ -3993,7 +4021,7 @@ snapshots:
       multiformats: 13.4.2
       ox: 0.14.20(typescript@6.0.3)(zod@4.4.3)
       p-locate: 7.0.0
-      p-queue: 9.2.0
+      p-queue: 9.3.0
       p-some: 7.0.0
       viem: 2.50.4(typescript@6.0.3)(zod@4.4.3)
       zod: 4.4.3
@@ -4564,6 +4592,8 @@ snapshots:
   balanced-match@4.0.4: {}
 
   base64-js@1.5.1: {}
+
+  bigint-mod-arith@3.3.1: {}
 
   binary-extensions@2.3.0: {}
 
@@ -5288,6 +5318,10 @@ snapshots:
 
   isexe@2.0.0: {}
 
+  iso-base@4.4.0:
+    dependencies:
+      bigint-mod-arith: 3.3.1
+
   iso-kv@3.1.1:
     dependencies:
       conf: 15.1.0
@@ -5565,6 +5599,10 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
+  p-all@5.0.1:
+    dependencies:
+      p-map: 6.0.0
+
   p-finally@1.0.0: {}
 
   p-limit@3.1.0:
@@ -5583,7 +5621,11 @@ snapshots:
     dependencies:
       p-limit: 7.3.0
 
-  p-queue@9.2.0:
+  p-map@6.0.0: {}
+
+  p-map@7.0.4: {}
+
+  p-queue@9.3.0:
     dependencies:
       eventemitter3: 5.0.4
       p-timeout: 7.0.1

@@ -1,8 +1,6 @@
 import * as SP from '@filoz/synapse-core/sp'
-import { and, eq, inArray } from 'drizzle-orm'
-import type { queueAsPromised } from 'fastq'
-import fastq from 'fastq'
-import { getDatasetForGroup } from '../db/get-dataset-for-group.ts'
+import { and, asc, eq, inArray } from 'drizzle-orm'
+import { getRepairDataset } from '../db/get-repair-dataset.ts'
 import { updateOperation } from '../db/update-operation.ts'
 import { updateRepair } from '../db/update-repair.ts'
 import { MissingRepairDataSetError, RepairNotFoundError } from '../error.ts'
@@ -14,14 +12,13 @@ import type {
 } from '../local-schema.ts'
 import * as localSchema from '../local-schema.ts'
 import type { IndexerDatabase, LocalDatabase, WalletClient } from '../types.ts'
-import { getMetadataForGroup, hashLink } from '../utils.ts'
+import { getRepairDatasetMetadata, hashLink } from '../utils.ts'
 
 export type RunCreateDatasetsPhaseOptions = {
   localDb: LocalDatabase
   indexerDb: IndexerDatabase
   client: WalletClient
   repair: SelectRepair
-  concurrency: number
   reset: boolean
 }
 
@@ -40,11 +37,11 @@ export function createDatasetWorker(options: CreateDatasetWorkerOptions) {
       let result: CreateDatasetOperationResult
 
       // check if dataset already exists
-      const maybeDataset = await getDatasetForGroup({
+      const maybeDataset = await getRepairDataset({
         indexerDb: options.indexerDb,
         providerId: options.repair.targetProviderId,
         payer: options.client.account.address,
-        group: operation.group,
+        blockNumber: options.repair.blockNumber,
       })
 
       if (maybeDataset) {
@@ -57,7 +54,7 @@ export function createDatasetWorker(options: CreateDatasetWorkerOptions) {
           serviceURL: options.repair.targetProviderUrl,
           payer: options.client.account.address,
           cdn: false,
-          metadata: getMetadataForGroup(operation.group),
+          metadata: getRepairDatasetMetadata(),
         })
 
         console.log(`Waiting for data set creation to be completed ${hashLink(txHash, options.client.chain)}...`)
@@ -80,7 +77,7 @@ export function createDatasetWorker(options: CreateDatasetWorkerOptions) {
       await updateRepair({
         localDb: options.localDb,
         repairId: operation.repairId,
-        targetDataSets: { [operation.group]: result.dataSetId },
+        targetDataSetId: result.dataSetId,
       })
     } catch (error) {
       console.error(error)
@@ -94,50 +91,41 @@ export function createDatasetWorker(options: CreateDatasetWorkerOptions) {
   }
 }
 
-/**
- * Run pending `create_dataset` operations and return successful creations by group.
- */
+/** Run pending `create_dataset` operations and verify the repair dataset exists. */
 export async function runCreateDatasetsPhase({
   localDb,
   indexerDb,
   client,
   repair,
-  concurrency,
   reset,
 }: RunCreateDatasetsPhaseOptions): Promise<void> {
-  const operations = await localDb.query.operations.findMany({
+  const operation = await localDb.query.operations.findFirst({
     where: and(
       eq(localSchema.operations.repairId, repair.id),
       inArray(localSchema.operations.status, reset ? ['pending', 'failed'] : ['pending']),
       eq(localSchema.operations.type, 'create_dataset')
     ),
+    orderBy: [asc(localSchema.operations.id)],
   })
 
-  const worker = createDatasetWorker({
-    client,
-    localDb,
-    indexerDb,
-    repair,
-  })
-
-  const queue: queueAsPromised<SelectOperation, void> = fastq.promise(worker, Math.max(1, concurrency))
-  for (const operation of operations) {
-    queue.push(operation).catch(console.error)
+  if (operation) {
+    const worker = createDatasetWorker({
+      client,
+      localDb,
+      indexerDb,
+      repair,
+    })
+    await worker(operation)
   }
-  await queue.drained()
 
-  // Validate that the repair has all target data sets
-  const repairDatasets = await localDb.query.repairs.findFirst({
+  const repairDataset = await localDb.query.repairs.findFirst({
     where: eq(localSchema.repairs.id, repair.id),
-    columns: { targetDataSets: true },
+    columns: { targetDataSetId: true },
   })
 
-  if (!repairDatasets) throw new RepairNotFoundError(repair.id)
+  if (!repairDataset) throw new RepairNotFoundError(repair.id)
 
-  // check if all target data sets are present
-  for (const [key, value] of Object.entries(repairDatasets.targetDataSets)) {
-    if (value === null) {
-      throw new MissingRepairDataSetError(key)
-    }
+  if (repairDataset.targetDataSetId === null) {
+    throw new MissingRepairDataSetError()
   }
 }

@@ -26,10 +26,6 @@ export interface Config {
 
 export type WalletClient = ViemClient<Transport, Chain, Account>
 
-export type Group = 'cdn' | 'ipfs' | 'both' | 'none'
-
-export const PIECE_GROUPS = ['cdn', 'ipfs', 'both', 'none'] as const satisfies readonly Group[]
-
 export type Context = z.infer<typeof contextSchema>
 
 /**
@@ -42,12 +38,4 @@ export type RepairProvider = {
   serviceUrl: string
   approved: boolean
   endorsed: boolean
-}
-
-export type DataSetForGroup = {
-  dataSetId: bigint
-  withCdn: boolean
-  withIpfsIndexing: boolean
-  payer: string
-  source: string | null
 }
