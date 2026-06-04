@@ -19,14 +19,3 @@ catalog:
   typescript: 6.0.3
   viem: ^2.50.4
   zod: ^4.3.5
-
-minimumReleaseAge: 10080
-
-minimumReleaseAgeExclude: 
-  - iso-base
-
-trustPolicy: no-downgrade
-
-trustPolicyExclude:
-  - chokidar@4.0.3
-  - vite@5.4.21

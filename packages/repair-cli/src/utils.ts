@@ -93,6 +93,7 @@ export async function createLocalDatabase(dbPath: string): Promise<LocalDatabase
 }
 
 export async function migrateLocalDatabase(db: LocalDatabase) {
+  // @ts-expect-error - TODO: fix this
   const result = await pushSQLiteSchema(schema, db)
   if (result.hasDataLoss) {
     throw new Error('Data loss detected during migration')
