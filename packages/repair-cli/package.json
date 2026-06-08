@@ -122,24 +122,14 @@
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
-    "@types/assert": "^1.5.11",
-    "@types/mocha": "catalog:",
     "@types/node": "catalog:",
     "@types/pg": "^8.20.0",
-    "assert": "^2.1.0",
-    "mocha": "catalog:",
-    "msw": "catalog:",
     "playwright-test": "^14.1.12",
-    "type-fest": "^5.4.3",
+    "type-fest": "^5.7.0",
     "typescript": "catalog:",
     "viem": "catalog:"
   },
   "publishConfig": {
     "access": "public"
-  },
-  "msw": {
-    "workerDirectory": [
-      "test/mocks"
-    ]
   }
 }

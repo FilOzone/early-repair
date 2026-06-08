@@ -10,9 +10,9 @@ allowBuilds:
 blockExoticSubdeps: true
 
 catalog:
-  '@biomejs/biome': 2.4.15
+  '@biomejs/biome': 2.4.16
   '@types/mocha': ^10.0.10
-  '@types/node': ^25.9.0
+  '@types/node': ^25.9.2
   drizzle-orm: ^0.45.2
   mocha: ^11.7.4
   msw: 2.14.6
