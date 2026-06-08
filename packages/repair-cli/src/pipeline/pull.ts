@@ -1,25 +1,26 @@
 import { taskLog } from '@clack/prompts'
 import * as Piece from '@filoz/synapse-core/piece'
+import { createPieceUrlPDP } from '@filoz/synapse-core/piece'
 import * as SP from '@filoz/synapse-core/sp'
 import { and, asc, eq, gt, inArray } from 'drizzle-orm'
 import PQueue from 'p-queue'
-import { filterPiecesNotInDataset } from '../db/filter-pull-pieces-not-in-dataset.ts'
 import { getTargetDataset } from '../db/get-target-dataset.ts'
+import { syncPiecesOnchain } from '../db/sync-pieces-onchain.ts'
 import { updateOperation } from '../db/update-operation.ts'
 import { upsertOperations } from '../db/upsert-operations.ts'
-
-import type { AddPieceOperationData, SelectOperation, SelectRepair } from '../local-schema.ts'
+import type { OperationSelect, RepairSelect } from '../local-schema.ts'
 import type { IndexerDatabase, LocalDatabase, WalletClient } from '../types.ts'
+import { hashLink } from '../utils.ts'
 
 /** Pending `add_piece` operations batched for a single pull job. */
 export type PullPiecesBatch = {
-  operations: SelectOperation[]
+  operations: OperationSelect[]
 }
 
 export type RunPullPiecesPhaseOptions = {
   localDb: LocalDatabase
   indexerDb: IndexerDatabase
-  repair: SelectRepair
+  repair: RepairSelect
   concurrency: number
   batchSize: number
   client: WalletClient
@@ -37,7 +38,7 @@ export function createPullPiecesWorker({
 }: {
   localDb: LocalDatabase
   indexerDb: IndexerDatabase
-  repair: SelectRepair
+  repair: RepairSelect
   client: WalletClient
   state: {
     totalBatches: number
@@ -48,101 +49,125 @@ export function createPullPiecesWorker({
   log: ReturnType<typeof taskLog>
 }) {
   return async (batch: PullPiecesBatch, batchNumber: number) => {
+    let completedCids = 0
+    let failedCids = 0
+    const cidToOperation = new Map<string, OperationSelect>()
+
     const spin = log.group(`Batch ${batchNumber}/${state.totalBatches}`)
     spin.message(`Pull 0 completed, 0 failed`)
+
     try {
       const dataset = await getTargetDataset({ localDb, repairId: repair.id, client })
-      // create pull pieces
-      const pullPieces: SP.PullPieceInput[] = []
+
       for (const operation of batch.operations) {
-        const data = operation.data as AddPieceOperationData
-        const pieceCid = Piece.from(data.cid)
-        const sourceUrl = new URL(`/piece/${pieceCid.toString()}`, data.alternateProviders[0]).toString()
-        pullPieces.push({ pieceCid, sourceUrl, metadata: data.metadata })
+        cidToOperation.set(operation.cid, operation)
       }
 
-      // wait for pull pieces
-      const pullResult = await SP.waitForPullPieces(client, {
-        serviceURL: repair.targetProviderUrl,
+      // sync pieces onchain to avoid duplicates
+      const completedOperations1 = await syncPiecesOnchain({
+        indexerDb,
+        localDb,
         dataSetId: dataset.dataSetId,
-        clientDataSetId: dataset.clientDataSetId,
-        pieces: pullPieces,
-        timeout: 1000 * 60 * 30,
-        onStatus: (_status) => {
-          const completed = _status.pieces.filter((piece) => piece.status === 'complete').length
-          const failed = _status.pieces.filter((piece) => piece.status === 'failed').length
-          spin.message(`Pull ${completed} completed, ${failed} failed`)
-        },
+        cidToOperation,
       })
+      state.completedOperations += completedOperations1
+      completedCids += completedOperations1
 
-      const completedCids = []
-      const failedCids = []
+      // create pull pieces
+      const pullPieces: SP.PullPieceInput[] = []
+      for (const [cid, operation] of cidToOperation) {
+        const pieceCid = Piece.from(cid)
+        const sourceUrl = createPieceUrlPDP({
+          cid,
+          serviceURL: operation.alternateProvider,
+        })
+        pullPieces.push({ pieceCid, sourceUrl })
+      }
 
-      for (const { pieceCid, status } of pullResult.pieces) {
-        const operation = batch.operations.find(
-          (operation) => (operation.data as AddPieceOperationData).cid === pieceCid.toString()
-        )
-        const data = operation?.data as AddPieceOperationData
+      if (pullPieces.length > 0) {
+        // wait for pull pieces
+        const pullResult = await SP.waitForPullPieces(client, {
+          serviceURL: repair.targetProviderUrl,
+          dataSetId: dataset.dataSetId,
+          clientDataSetId: dataset.clientDataSetId,
+          pieces: pullPieces,
+          timeout: 1000 * 60 * 30,
+          onStatus: (_status) => {
+            const completed = _status.pieces.filter((piece) => piece.status === 'complete').length
+            const failed = _status.pieces.filter((piece) => piece.status === 'failed').length
+            spin.message(`Pull ${completed} completed, ${failed} failed`)
+          },
+        })
 
-        switch (status) {
-          case 'complete': {
-            completedCids.push(pieceCid)
-            if (operation) {
-              await updateOperation({
-                localDb,
-                operationId: operation.id,
-                status: 'pending',
-                error: null,
-              })
-            }
-            break
+        for (const { pieceCid, status } of pullResult.pieces) {
+          const cid = pieceCid.toString()
+          const operation = cidToOperation.get(cid)
+          if (!operation) {
+            console.log(`operation not found for cid ${cid}`)
+            continue
           }
-          case 'failed': {
-            if (operation) {
-              failedCids.push(pieceCid)
-              console.log(`cid ${pieceCid} failed to pull from ${data.alternateProviders[0]}`)
-              await updateOperation({
-                localDb,
-                operationId: operation.id,
-                status: 'failed',
-                error: `failed to pull from ${data.alternateProviders[0]}`,
-              })
-            }
-            break
-          }
-          default: {
-            console.log(`Piece ${pieceCid} status: ${status}`)
-            break
+
+          if (status !== 'complete') {
+            state.failedOperations++
+            failedCids++
+            cidToOperation.delete(cid)
+            await updateOperation({
+              localDb,
+              operationId: operation.id,
+              status: 'failed',
+              error: `pull failed with status ${status}`,
+            })
           }
         }
       }
-      state.completedOperations += completedCids.length
-      state.failedOperations += failedCids.length
 
-      // prepare operations for commit
-      const notInDatasetCids = await filterPiecesNotInDataset({
+      // sync against indexer to avoid duplicates
+      const completedOperations2 = await syncPiecesOnchain({
         indexerDb,
+        localDb,
         dataSetId: dataset.dataSetId,
-        cids: completedCids,
+        cidToOperation,
       })
+      state.completedOperations += completedOperations2
+      completedCids += completedOperations2
+
       const commitPieces: SP.addPieces.PieceType[] = []
-      for (const cid of notInDatasetCids) {
+      for (const [cid] of cidToOperation) {
         commitPieces.push({
           pieceCid: Piece.from(cid),
-          metadata: pullPieces.find(({ pieceCid }) => pieceCid.toString() === cid)?.metadata,
         })
       }
-      spin.success(
-        `Batch ${batchNumber}/${state.totalBatches} ${completedCids.length} completed, ${failedCids.length} failed`
-      )
-      // console.log(commitPieces)
+
+      if (commitPieces.length > 0) {
+        const addPiecesResult = await SP.addPieces(client, {
+          serviceURL: repair.targetProviderUrl,
+          dataSetId: dataset.dataSetId,
+          clientDataSetId: dataset.clientDataSetId,
+          pieces: commitPieces,
+        })
+
+        spin.message(`Waiting for add pieces ${hashLink(addPiecesResult.txHash, client.chain)}...`)
+        const addPiecesResult2 = await SP.waitForAddPieces(addPiecesResult)
+        state.completedOperations += cidToOperation.size
+        completedCids += cidToOperation.size
+        await upsertOperations({
+          localDb,
+          operations: Array.from(cidToOperation.values()).map((operation) => ({
+            ...operation,
+            status: 'completed',
+            error: null,
+            result: { dataSetId: addPiecesResult2.dataSetId, txHash: addPiecesResult2.txHash },
+          })),
+        })
+      }
+      spin.success(`Batch ${batchNumber}/${state.totalBatches} ${completedCids} added, ${failedCids} failed`)
     } catch (error) {
-      state.failedOperations += batch.operations.length
+      state.failedOperations += cidToOperation.size
       const message = error instanceof Error ? error.message : 'Unknown error'
       spin.error(`Batch ${batchNumber}/${state.totalBatches} - ${message.replace(/\n/g, ' ')}`)
       await upsertOperations({
         localDb,
-        operations: batch.operations.map((operation) => ({
+        operations: Array.from(cidToOperation.values()).map((operation) => ({
           ...operation,
           status: 'failed',
           error: message,

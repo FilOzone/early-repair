@@ -1,9 +1,9 @@
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { Cli, z } from 'incur'
-import { createRepair } from '../db/create-repair.ts'
-import { deleteRepair } from '../db/delete-repair.ts'
+import { repairCreate } from '../db/repair-create.ts'
+import { repairDelete } from '../db/repair-delete.ts'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
-import { runCreateDatasetsPhase } from '../pipeline/create-datasets.ts'
+import { ensureRepairDataset } from '../pipeline/create-datasets.ts'
 import { runPullPiecesPhase } from '../pipeline/pull.ts'
 import { globalOptions } from '../utils.ts'
 export const repair = Cli.create('repair', {
@@ -22,7 +22,7 @@ repair.command('create', {
     try {
       const { providerId, targetProviderId } = c.options
 
-      const repairId = await createRepair({
+      const repairId = await repairCreate({
         ...c.var,
         repairProviderId: providerId,
         targetProviderId,
@@ -52,9 +52,7 @@ repair.command('list', {
       const repairs = await c.var.localDb.query.repairs.findMany({
         orderBy: [desc(localSchema.repairs.createdAt)],
         with: {
-          operations: {
-            where: eq(localSchema.operations.status, 'pending'),
-          },
+          operations: true,
         },
       })
 
@@ -68,9 +66,11 @@ repair.command('list', {
           targetProviderUrl: repairWithoutOperations.targetProviderUrl,
           targetDataSetId: repairWithoutOperations.targetDataSetId,
           blockNumber: repairWithoutOperations.blockNumber,
-          createdAt: new Date(repairWithoutOperations.createdAt).toISOString(),
-          updatedAt: new Date(repairWithoutOperations.updatedAt).toISOString(),
           operations: operations.length,
+          pending: operations.filter((operation) => operation.status === 'pending').length,
+          failed: operations.filter((operation) => operation.status === 'failed').length,
+          completed: operations.filter((operation) => operation.status === 'completed').length,
+          skipped: operations.filter((operation) => operation.status === 'skipped').length,
         }
       })
 
@@ -97,7 +97,7 @@ repair.command('delete', {
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
-      const { deleted, operationsDeleted } = await deleteRepair({
+      const { deleted, operationsDeleted } = await repairDelete({
         localDb: c.var.localDb,
         repairId: c.args.repairId,
       })
@@ -132,7 +132,7 @@ repair.command('run', {
   }),
   options: globalOptions.extend({
     concurrency: z.coerce.number().default(4).describe('Concurrency level'),
-    batchSize: z.coerce.number().default(10).describe('Max add_piece operations per pull batch'),
+    batchSize: z.coerce.number().default(40).describe('Max add_piece operations per pull batch'),
     reset: z.boolean().default(false).describe('Reset the repair'),
   }),
   middleware: [contextMiddleware],
@@ -150,17 +150,15 @@ repair.command('run', {
         })
       }
 
-      const concurrency = Math.max(1, c.options.concurrency)
-      await runCreateDatasetsPhase({
+      await ensureRepairDataset({
         ...c.var,
         repair,
-        reset: c.options.reset,
       })
 
       await runPullPiecesPhase({
         ...c.var,
         repair,
-        concurrency,
+        concurrency: c.options.concurrency,
         batchSize: c.options.batchSize,
         reset: c.options.reset,
       })

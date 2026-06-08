@@ -5,39 +5,21 @@ import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 import * as t from 'drizzle-orm/sqlite-core'
 import { customType, sqliteTable as table } from 'drizzle-orm/sqlite-core'
 import * as Json from 'iso-base/json'
-import type { Address, Hash } from 'viem'
 
 export type RepairStatus = 'pending' | 'completed' | 'failed'
-
-export type OperationStatus = 'pending' | 'pulled' | 'committed' | 'completed' | 'failed' | 'skipped'
+export type OperationStatus = 'pending' | 'completed' | 'failed' | 'skipped'
 export type OperationType = 'create_dataset' | 'add_piece'
 
-export interface CreateDatasetOperationData {
-  payee: Address
-}
-
-export type CreateDatasetOperationResult = {
-  txHash?: Hash
-  dataSetId: bigint
-}
-
-export interface AddPieceOperationData {
-  cid: string
-  metadata: MetadataObject
-  alternateProviders: string[]
-}
-
-export type AddPieceOperationResult = Omit<SP.AddPiecesSuccess, 'txStatus' | 'addMessageOk' | 'piecesAdded'>
-
-export type OperationData = CreateDatasetOperationData | AddPieceOperationData
-
-export type OperationResult = CreateDatasetOperationResult | AddPieceOperationResult
+export type OperationResult = Omit<
+  SP.AddPiecesSuccess,
+  'txStatus' | 'addMessageOk' | 'piecesAdded' | 'pieceCount' | 'confirmedPieceIds'
+>
 
 /**
  * Custom type for JSON
  * It will be used to store JSON data in the database
  */
-export const jsonType = customType<{ data: Record<string, any> }>({
+export const jsonType = customType<{ data: unknown }>({
   dataType() {
     return 'text'
   },
@@ -61,8 +43,9 @@ export const bigintType = customType<{ data: bigint }>({
   },
 })
 
-export type InsertRepair = typeof repairs.$inferInsert
-export type SelectRepair = typeof repairs.$inferSelect
+export type RepairInsert = typeof repairs.$inferInsert
+export type RepairSelect = typeof repairs.$inferSelect
+export type RepairUpdate = Partial<RepairInsert>
 
 export const repairs = table('repairs', {
   id: t.int().primaryKey({ autoIncrement: true }),
@@ -76,8 +59,8 @@ export const repairs = table('repairs', {
   updatedAt: t.integer('updated_at').notNull(),
 })
 
-export type InsertOperation = typeof operations.$inferInsert
-export type SelectOperation = typeof operations.$inferSelect
+export type OperationInsert = typeof operations.$inferInsert
+export type OperationSelect = typeof operations.$inferSelect
 
 export const operations = table('operations', {
   id: t.int().primaryKey({ autoIncrement: true }),
@@ -87,7 +70,9 @@ export const operations = table('operations', {
     .notNull(),
   type: t.text().$type<OperationType>().notNull(),
   status: t.text().$type<OperationStatus>().notNull().default('pending'),
-  data: jsonType().$type<OperationData>().notNull(),
+  cid: t.text().notNull(),
+  metadata: jsonType().$type<MetadataObject>().notNull(),
+  alternateProvider: t.text('alternate_provider').notNull(),
   result: jsonType().$type<OperationResult>(),
   error: t.text(),
   createdAt: t.integer('created_at').notNull(),

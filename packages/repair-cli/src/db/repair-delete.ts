@@ -2,12 +2,12 @@ import { eq } from 'drizzle-orm'
 import * as localSchema from '../local-schema.ts'
 import type { LocalDatabase } from '../types.ts'
 
-export type DeleteRepairOptions = {
+export type RepairDeleteOptions = {
   localDb: LocalDatabase
   repairId: number
 }
 
-export type DeleteRepairResult = {
+export type RepairDeleteResult = {
   deleted: boolean
   operationsDeleted: number
 }
@@ -15,7 +15,7 @@ export type DeleteRepairResult = {
 /**
  * Delete a repair and all of its operations from the local database.
  */
-export async function deleteRepair({ localDb, repairId }: DeleteRepairOptions): Promise<DeleteRepairResult> {
+export async function repairDelete({ localDb, repairId }: RepairDeleteOptions): Promise<RepairDeleteResult> {
   const repair = await localDb.query.repairs.findFirst({
     where: eq(localSchema.repairs.id, repairId),
     columns: { id: true },
@@ -30,8 +30,10 @@ export async function deleteRepair({ localDb, repairId }: DeleteRepairOptions): 
     return { deleted: false, operationsDeleted: 0 }
   }
 
-  await localDb.delete(localSchema.operations).where(eq(localSchema.operations.repairId, repairId))
-  const deleted = await localDb.delete(localSchema.repairs).where(eq(localSchema.repairs.id, repairId))
+  const operationsDeleted = await localDb
+    .delete(localSchema.operations)
+    .where(eq(localSchema.operations.repairId, repairId))
+  await localDb.delete(localSchema.repairs).where(eq(localSchema.repairs.id, repairId))
 
-  return { deleted: true, operationsDeleted: deleted.rowsAffected }
+  return { deleted: true, operationsDeleted: operationsDeleted.rowsAffected }
 }

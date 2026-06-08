@@ -1,5 +1,6 @@
-import { and, asc, count, eq, inArray, isNull, or, sum } from 'drizzle-orm'
+import { and, asc, count, eq, inArray, isNull, lte, or, type SQLWrapper, sum } from 'drizzle-orm'
 import { Cli, z } from 'incur'
+import { getBlockNumber } from 'viem/actions'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
 import { globalOptions } from '../utils.ts'
 
@@ -19,18 +20,25 @@ export const providers = Cli.create('providers', {
 
 providers.command('list', {
   description: 'List all providers from the indexer',
-  options: globalOptions,
+  options: globalOptions.extend({
+    all: z.boolean().optional().default(false).describe('Include all providers'),
+  }),
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
       const schema = c.var.indexerDb._.fullSchema
+      const filters: (SQLWrapper | undefined)[] = [
+        eq(schema.providers.providerActive, true),
+        eq(schema.providers.pdpProductActive, true),
+        // or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true)),
+      ]
+      if (!c.options.all) {
+        filters.push(or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true)))
+      }
+      const blockNumber = await getBlockNumber(c.var.client)
       const rows = await c.var.indexerDb.query.providers.findMany({
         orderBy: [asc(schema.providers.providerId)],
-        where: and(
-          eq(schema.providers.providerActive, true),
-          eq(schema.providers.pdpProductActive, true),
-          or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true))
-        ),
+        where: and(...filters),
       })
 
       const providerIds = rows.map((provider) => provider.providerId)
@@ -49,7 +57,7 @@ providers.command('list', {
             and(
               inArray(schema.dataSets.providerId, providerIds),
               eq(schema.dataSets.deleted, false),
-              isNull(schema.dataSets.pdpEndEpoch),
+              or(isNull(schema.dataSets.pdpEndEpoch), lte(schema.dataSets.pdpEndEpoch, blockNumber)),
               eq(schema.pieces.removed, false)
             )
           )

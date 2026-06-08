@@ -134,12 +134,13 @@ export async function getPiece({ pieceCid, serviceUrl }: { pieceCid: string; ser
   const response = await request.head(url, {
     retry: {
       retries: 2,
+      minTimeout: 250,
     },
     timeout: 3000,
   })
 
   if (response.error) {
-    console.log(response.error.message, url.toString())
+    // console.log(response.error.message, url.toString())
     throw response.error
   }
   return pieceCid

@@ -1,4 +1,4 @@
-import { and, asc, eq, lte } from 'drizzle-orm'
+import { and, asc, eq, isNull } from 'drizzle-orm'
 import type { Address } from 'viem'
 import type { IndexerDatabase } from '../types.ts'
 import { EARLY_REPAIR_SOURCE } from '../utils.ts'
@@ -7,7 +7,6 @@ export type GetRepairDatasetOptions = {
   indexerDb: IndexerDatabase
   providerId: bigint
   payer: Address
-  blockNumber: bigint
 }
 
 /**
@@ -19,8 +18,7 @@ export async function getRepairDataset({
   indexerDb,
   providerId,
   payer,
-  blockNumber,
-}: GetRepairDatasetOptions): Promise<{ dataSetId: bigint } | null> {
+}: GetRepairDatasetOptions): Promise<bigint | null> {
   const schema = indexerDb._.fullSchema
 
   const [row] = await indexerDb
@@ -32,7 +30,7 @@ export async function getRepairDataset({
       and(
         eq(schema.dataSets.providerId, providerId),
         eq(schema.dataSets.deleted, false),
-        lte(schema.dataSets.pdpEndEpoch, blockNumber),
+        isNull(schema.dataSets.pdpEndEpoch),
         eq(schema.dataSets.payer, payer.toLowerCase()),
         eq(schema.dataSets.source, EARLY_REPAIR_SOURCE),
         eq(schema.dataSets.withCdn, false),
@@ -42,5 +40,5 @@ export async function getRepairDataset({
     .orderBy(asc(schema.dataSets.dataSetId))
     .limit(1)
 
-  return row ?? null
+  return row.dataSetId ?? null
 }

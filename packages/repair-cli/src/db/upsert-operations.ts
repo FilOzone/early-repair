@@ -1,11 +1,11 @@
-import type { InsertOperation } from '../local-schema.ts'
+import type { OperationInsert } from '../local-schema.ts'
 import * as localSchema from '../local-schema.ts'
 import type { LocalDatabase } from '../types.ts'
 import { buildConflictUpdateColumns } from '../utils.ts'
 
 export type UpsertOperationsOptions = {
   localDb: LocalDatabase
-  operations: InsertOperation[]
+  operations: OperationInsert[]
 }
 
 /**

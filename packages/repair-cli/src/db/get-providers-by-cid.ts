@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, lte, notInArray, or } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, lte, notInArray, or } from 'drizzle-orm'
 import type { IndexerDatabase, RepairProvider } from '../types.ts'
 
 export type GetProvidersByCidOptions = {
@@ -33,9 +33,9 @@ export async function getProvidersByCid({
   const filters = [
     inArray(schema.pieces.cid, [...cids]),
     eq(schema.dataSets.deleted, false),
-    lte(schema.dataSets.pdpEndEpoch, blockNumber),
+    or(isNull(schema.dataSets.pdpEndEpoch), lte(schema.dataSets.pdpEndEpoch, blockNumber)),
     eq(schema.pieces.removed, false),
-    or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true)),
+    // or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true)),
   ]
   if (excludedProviderIds.length > 0) {
     filters.push(notInArray(schema.dataSets.providerId, [...excludedProviderIds]))

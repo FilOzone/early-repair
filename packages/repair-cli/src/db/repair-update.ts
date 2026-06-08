@@ -1,18 +1,16 @@
 import { eq } from 'drizzle-orm'
-import type { InsertRepair } from '../local-schema.ts'
+import type { RepairUpdate } from '../local-schema.ts'
 import * as localSchema from '../local-schema.ts'
 import type { LocalDatabase } from '../types.ts'
 
-export type UpdateRepairOptions = {
+export type RepairUpdateOptions = {
   localDb: LocalDatabase
   repairId: number
   status?: localSchema.RepairStatus
   targetDataSetId?: bigint | null
 }
 
-type RepairUpdate = Partial<InsertRepair>
-
-export async function updateRepair({ localDb, repairId, status, targetDataSetId }: UpdateRepairOptions) {
+export async function repairUpdate({ localDb, repairId, status, targetDataSetId }: RepairUpdateOptions) {
   const update: RepairUpdate = {
     updatedAt: Date.now(),
   }

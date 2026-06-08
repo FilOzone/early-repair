@@ -1,8 +1,8 @@
-import { and, asc, eq, lte } from 'drizzle-orm'
+import * as Piece from '@filoz/synapse-core/piece'
+import { and, asc, eq, isNull, lte, or } from 'drizzle-orm'
 import pMap from 'p-map'
-import type { InsertOperation } from '../local-schema.ts'
+import type { OperationInsert } from '../local-schema.ts'
 import type { IndexerDatabase } from '../types.ts'
-import { findPieceOnProviders } from '../utils.ts'
 import { getProvidersByCid } from './get-providers-by-cid.ts'
 
 /** Default page size when paginating pieces from the indexer. */
@@ -31,7 +31,7 @@ export type GetPiecesPageOptions = {
 /** Result of a single {@link getPiecesPage} call. */
 export type GetPiecesPageResult = {
   /** `add_piece` operations ready to insert for this page (may include `skipped` rows). */
-  operations: InsertOperation[]
+  operations: OperationInsert[]
   /** Whether another indexer page may exist after this one. */
   hasMore: boolean
   /** Offset to pass as `offset` on the next page. */
@@ -87,7 +87,7 @@ export async function getPiecesPage({
       and(
         eq(schema.dataSets.providerId, providerId),
         eq(schema.dataSets.deleted, false),
-        lte(schema.dataSets.pdpEndEpoch, blockNumber),
+        or(isNull(schema.dataSets.pdpEndEpoch), lte(schema.dataSets.pdpEndEpoch, blockNumber)),
         eq(schema.pieces.removed, false)
       )
     )
@@ -114,18 +114,20 @@ export async function getPiecesPage({
     blockNumber,
   })
 
-  const operations: InsertOperation[] = await pMap(
+  const operations: OperationInsert[] = await pMap(
     pieces,
     async ({ cid, metadata }) => {
       const alternateProviders = providersByCid[cid]?.map((provider) => provider.serviceUrl) ?? []
-      let skippedMessage = 'No alternate providers found'
+      let skippedMessage = ''
       let validProvider: string | undefined
       if (alternateProviders.length > 0) {
-        validProvider = await findPieceOnProviders(alternateProviders, cid)
+        validProvider = await Piece.findPieceOnProviders(alternateProviders, Piece.from(cid))
 
         if (!validProvider) {
           skippedMessage = `Found ${alternateProviders.length} alternate providers, but none are valid. ${alternateProviders.join(', ')}`
         }
+      } else {
+        skippedMessage = `No alternate providers found`
       }
 
       return {
@@ -133,11 +135,9 @@ export async function getPiecesPage({
         type: 'add_piece',
         // Cannot pull without another replica; mark skipped up front so run skips these ops.
         status: validProvider ? 'pending' : 'skipped',
-        data: {
-          cid,
-          metadata: metadata ?? {},
-          alternateProviders: validProvider ? [validProvider] : [],
-        },
+        cid,
+        metadata: metadata ?? {},
+        alternateProvider: validProvider ?? '',
         error: validProvider ? undefined : skippedMessage,
         createdAt: now,
         updatedAt: now,
