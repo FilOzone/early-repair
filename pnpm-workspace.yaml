@@ -3,28 +3,19 @@ packages:
   - apps/*
 
 allowBuilds:
+  better-sqlite3: true
   esbuild: true
   msw: true
 
 blockExoticSubdeps: true
 
 catalog:
-  '@biomejs/biome': 2.4.11
+  '@biomejs/biome': 2.4.16
   '@types/mocha': ^10.0.10
-  '@types/node': ^25.6.0
+  '@types/node': ^25.9.2
   drizzle-orm: ^0.45.2
   mocha: ^11.7.4
-  msw: 2.14.2
+  msw: 2.14.6
   typescript: 6.0.3
-  viem: ^2.47.17
+  viem: ^2.50.4
   zod: ^4.3.5
-
-minimumReleaseAge: 10080
-
-minimumReleaseAgeExclude: []
-
-trustPolicy: no-downgrade
-
-trustPolicyExclude:
-  - chokidar@4.0.3
-  - vite@5.4.21

@@ -32,5 +32,6 @@
   "[mdx]": {
     "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
   },
-  "markdown.validate.enabled": false
+  "markdown.validate.enabled": false,
+  "typescript.tsdk": "node_modules/typescript/lib"
 }
