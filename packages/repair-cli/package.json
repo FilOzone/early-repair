@@ -1,10 +1,11 @@
 {
   "name": "@filoz/repair-cli",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Early repair for faulty service providers and datasets",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/FilOzone/early-repair.git"
+    "url": "git+https://github.com/FilOzone/early-repair.git",
+    "directory": "packages/repair-cli"
   },
   "keywords": [
     "filecoin",
@@ -23,10 +24,7 @@
   "main": "dist/src/cli.js",
   "module": "dist/src/cli.js",
   "types": "dist/src/cli.d.ts",
-  "bin": {
-    "repair": "./dist/cli.js",
-    "repair.src": "./src/cli.ts"
-  },
+  "bin": "./dist/cli.js",
   "sideEffects": false,
   "exports": {
     ".": {
