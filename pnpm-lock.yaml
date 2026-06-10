@@ -52,7 +52,7 @@ importers:
         version: 13.4.2
       ponder:
         specifier: npm:@rvagg/ponder@^0.16.6
-        version: '@rvagg/ponder@0.16.6(@libsql/client@0.17.3)(@opentelemetry/api@1.9.1)(@types/node@25.9.2)(@types/pg@8.20.0)(hono@4.12.23)(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3))'
+        version: '@rvagg/ponder@0.16.6(@libsql/client@0.17.3)(@opentelemetry/api@1.9.1)(@types/node@25.9.2)(@types/pg@8.20.0)(hono@4.12.23)(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))'
       viem:
         specifier: 'catalog:'
         version: 2.51.3(typescript@6.0.3)(zod@4.4.3)
@@ -75,9 +75,6 @@ importers:
       '@clack/prompts':
         specifier: ^1.5.1
         version: 1.5.1
-      '@filoz/repair-db':
-        specifier: workspace:*
-        version: link:../repair-db
       '@filoz/synapse-core':
         specifier: ^0.6.0
         version: 0.6.0(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))
@@ -3965,7 +3962,7 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
-  '@ponder/utils@0.2.18(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3))':
+  '@ponder/utils@0.2.18(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))':
     dependencies:
       viem: 2.51.3(typescript@6.0.3)(zod@4.4.3)
     optionalDependencies:
@@ -4048,7 +4045,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.60.4':
     optional: true
 
-  '@rvagg/ponder@0.16.6(@libsql/client@0.17.3)(@opentelemetry/api@1.9.1)(@types/node@25.9.2)(@types/pg@8.20.0)(hono@4.12.23)(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3))':
+  '@rvagg/ponder@0.16.6(@libsql/client@0.17.3)(@opentelemetry/api@1.9.1)(@types/node@25.9.2)(@types/pg@8.20.0)(hono@4.12.23)(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@commander-js/extra-typings': 12.1.0(commander@12.1.0)
@@ -4057,7 +4054,7 @@ snapshots:
       '@escape.tech/graphql-armor-max-depth': 2.4.2
       '@escape.tech/graphql-armor-max-tokens': 2.5.1
       '@hono/node-server': 1.19.5(hono@4.12.23)
-      '@ponder/utils': 0.2.18(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3))
+      '@ponder/utils': 0.2.18(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))
       abitype: 0.10.3(typescript@6.0.3)
       ansi-escapes: 7.3.0
       commander: 12.1.0

@@ -1,6 +1,6 @@
 {
   "name": "@filoz/repair-cli",
-  "version": "0.0.1",
+  "version": "0.0.6",
   "description": "Early repair for faulty service providers and datasets",
   "repository": {
     "type": "git",
@@ -24,7 +24,9 @@
   "main": "dist/src/cli.js",
   "module": "dist/src/cli.js",
   "types": "dist/src/cli.d.ts",
-  "bin": "./dist/cli.js",
+  "bin": {
+    "repair-cli": "./dist/src/cli.js"
+  },
   "sideEffects": false,
   "exports": {
     ".": {
@@ -102,7 +104,6 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.5.1",
-    "@filoz/repair-db": "workspace:*",
     "@filoz/synapse-core": "^0.6.0",
     "@libsql/client": "^0.17.3",
     "conf": "^15.1.0",
