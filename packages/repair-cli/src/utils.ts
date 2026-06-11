@@ -1,7 +1,6 @@
 import type { MetadataObject } from '@filoz/synapse-core'
 import { type Chain, getChain } from '@filoz/synapse-core/chains'
 import Conf from 'conf'
-import { pushSQLiteSchema } from 'drizzle-kit/api'
 import { getTableColumns, type SQL, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/libsql'
 import type { PgTable } from 'drizzle-orm/pg-core'
@@ -93,17 +92,37 @@ export async function createLocalDatabase(dbPath: string): Promise<LocalDatabase
 }
 
 export async function migrateLocalDatabase(db: LocalDatabase) {
-  // @ts-expect-error - TODO: fix this
-  const result = await pushSQLiteSchema(schema, db)
-  if (result.hasDataLoss) {
-    throw new Error('Data loss detected during migration')
-  }
-  if (result.warnings.length > 0) {
-    throw new Error(`Warnings detected during migration:\n${result.warnings.join('\n')}`)
-  }
-
-  await result.apply()
-  return result
+  // Keep local DB setup runtime-only; drizzle-kit/api has undeclared deps that
+  // break in pnpm dlx/pnpx installs of the published CLI.
+  await db.$client.execute(`
+    CREATE TABLE IF NOT EXISTS repairs (
+      id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+      status text DEFAULT 'pending' NOT NULL,
+      repair_provider_id text NOT NULL,
+      target_provider_id text NOT NULL,
+      target_provider_url text NOT NULL,
+      target_data_set_id text,
+      block_number text NOT NULL,
+      created_at integer NOT NULL,
+      updated_at integer NOT NULL
+    )
+  `)
+  await db.$client.execute(`
+    CREATE TABLE IF NOT EXISTS operations (
+      id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+      repair_id integer NOT NULL,
+      type text NOT NULL,
+      status text DEFAULT 'pending' NOT NULL,
+      cid text NOT NULL,
+      metadata text NOT NULL,
+      alternate_provider text NOT NULL,
+      result text,
+      error text,
+      created_at integer NOT NULL,
+      updated_at integer NOT NULL,
+      FOREIGN KEY (repair_id) REFERENCES repairs(id)
+    )
+  `)
 }
 
 /**

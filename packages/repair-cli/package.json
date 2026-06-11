@@ -1,6 +1,6 @@
 {
   "name": "@filoz/repair-cli",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Early repair for faulty service providers and datasets",
   "repository": {
     "type": "git",
@@ -36,6 +36,7 @@
   },
   "files": [
     "src",
+    "dist/package.json",
     "dist/src",
     "dist/src/**/*.d.ts",
     "dist/src/**/*.d.ts.map"
@@ -107,7 +108,6 @@
     "@filoz/synapse-core": "^0.6.0",
     "@libsql/client": "^0.17.3",
     "conf": "^15.1.0",
-    "drizzle-kit": "^0.31.10",
     "drizzle-orm": "catalog:",
     "incur": "^0.4.6",
     "iso-base": "^4.4.0",
@@ -117,7 +117,8 @@
     "p-map": "^7.0.4",
     "p-queue": "^9.3.0",
     "pg": "^8.21.0",
-    "terminal-link": "^5.0.0"
+    "terminal-link": "^5.0.0",
+    "viem": "catalog:"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
@@ -125,8 +126,7 @@
     "@types/pg": "^8.20.0",
     "playwright-test": "^14.1.12",
     "type-fest": "^5.7.0",
-    "typescript": "catalog:",
-    "viem": "catalog:"
+    "typescript": "catalog:"
   },
   "publishConfig": {
     "access": "public"
