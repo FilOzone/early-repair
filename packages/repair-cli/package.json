@@ -1,6 +1,6 @@
 {
   "name": "@filoz/repair-cli",
-  "version": "0.0.7",
+  "version": "0.1.0",
   "description": "Early repair for faulty service providers and datasets",
   "repository": {
     "type": "git",
