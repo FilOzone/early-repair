@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.1.0...repair-cli-v0.1.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* update CLI command and example in documentation ([8e473d4](https://github.com/FilOzone/early-repair/commit/8e473d44bc5afb9304e51c8750d3e492b79703a9))
+
 ## [0.1.0](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.0.7...repair-cli-v0.1.0) (2026-06-11)
 
 
