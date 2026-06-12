@@ -190,7 +190,7 @@ Options:
 Example:
 
 ```bash
-repair repair run 1 --concurrency 8 --batch-size 100 --reset
+repair repair run 1 --concurrency 8 --batch-size 40 --reset
 ```
 
 ### `repair repair delete <repairId>`

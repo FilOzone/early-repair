@@ -25,7 +25,7 @@
   "module": "dist/src/cli.js",
   "types": "dist/src/cli.d.ts",
   "bin": {
-    "repair-cli": "./dist/src/cli.js"
+    "repair": "./dist/src/cli.js"
   },
   "sideEffects": false,
   "exports": {
