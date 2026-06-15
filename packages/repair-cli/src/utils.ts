@@ -1,42 +1,35 @@
 import type { MetadataObject } from '@filoz/synapse-core'
 import { type Chain, getChain } from '@filoz/synapse-core/chains'
-import Conf from 'conf'
 import { getTableColumns, type SQL, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/libsql'
 import type { PgTable } from 'drizzle-orm/pg-core'
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core'
 import { z } from 'incur'
+import { Conf } from 'iso-conf'
 import { request } from 'iso-web/http'
 import pLocate from 'p-locate'
 import terminalLink from 'terminal-link'
-import { createWalletClient, http } from 'viem'
+import { createWalletClient, type Hex, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import packageJson from '../package.json' with { type: 'json' }
 import * as schema from './local-schema.ts'
-import type { Config, LocalDatabase } from './types.ts'
+import type { LocalDatabase } from './types.ts'
 
 export const EARLY_REPAIR_SOURCE = 'early-repair6'
 
-export const config = new Conf<Config>({
+export const configSchema = z.object({
+  privateKey: z.string().optional(),
+  indexerMainnetUrl: z.url().optional(),
+  indexerCalibrationUrl: z.url().optional(),
+  chainId: z.number().optional(),
+  dbPath: z.string().optional(),
+  source: z.string().optional(),
+})
+
+export const config = new Conf({
   projectName: packageJson.name,
   projectSuffix: '',
-  schema: {
-    privateKey: {
-      type: 'string',
-    },
-    dbPath: {
-      type: 'string',
-    },
-    indexerMainnetUrl: {
-      type: 'string',
-    },
-    indexerCalibrationUrl: {
-      type: 'string',
-    },
-    chainId: {
-      type: 'number',
-    },
-  },
+  schema: configSchema,
 })
 
 export const name = packageJson.name
@@ -47,7 +40,7 @@ function privateKeyFromConfig() {
   if (!privateKey) {
     throw new Error('Private key not found. Please run `repair-cli setup` first.')
   }
-  return privateKey
+  return privateKey as Hex
 }
 
 /**

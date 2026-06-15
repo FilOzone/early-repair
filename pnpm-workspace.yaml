@@ -9,6 +9,9 @@ allowBuilds:
 
 blockExoticSubdeps: true
 
+minimumReleaseAgeExclude:
+  - iso-conf
+
 catalog:
   '@biomejs/biome': 2.4.16
   '@types/mocha': ^10.0.10

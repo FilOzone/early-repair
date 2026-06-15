@@ -1,7 +1,10 @@
+import * as p from '@clack/prompts'
+import * as SP from '@filoz/synapse-core/sp'
+import { getPdpDataSet } from '@filoz/synapse-core/warm-storage'
 import { and, eq } from 'drizzle-orm'
 import { Cli, z } from 'incur'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
-import { globalOptions } from '../utils.ts'
+import { globalOptions, hashLink } from '../utils.ts'
 export const datasets = Cli.create('datasets', {
   description: 'Dataset commands',
   options: globalOptions,
@@ -55,6 +58,98 @@ datasets.command('list', {
       return c.error({
         code: 'DATASETS_FAILED',
         message: error instanceof Error ? error.message : 'Failed to list datasets',
+        retryable: true,
+      })
+    }
+  },
+})
+
+datasets.command('terminate', {
+  description: 'Terminate a dataset',
+  args: z.object({
+    id: z.coerce.bigint().describe('Dataset ID to terminate'),
+  }),
+  options: globalOptions,
+  middleware: [contextMiddleware],
+  outputPolicy: 'agent-only',
+  run: async (c) => {
+    const isInteractive = !c.agent && !c.formatExplicit
+    const spinner = p.spinner()
+    try {
+      if (isInteractive) {
+        spinner.start('Getting dataset...')
+      }
+      const dataset = await getPdpDataSet(c.var.client, { dataSetId: c.args.id })
+      if (!dataset) {
+        return c.error({
+          code: 'DATASET_NOT_FOUND',
+          message: 'Dataset not found',
+          retryable: false,
+        })
+      }
+      if (isInteractive) {
+        spinner.message(`Terminating dataset ${dataset?.dataSetId} at ${dataset?.provider.pdp.serviceURL}...`)
+      }
+      const result = await SP.terminateService(c.var.client, {
+        dataSetId: c.args.id,
+        serviceURL: dataset?.provider.pdp.serviceURL,
+      })
+
+      const waitForResult = await SP.waitForTerminateService({
+        statusUrl: result.statusUrl,
+        onHash: (hash) => {
+          if (isInteractive) {
+            spinner.message(`Waiting for tx ${hashLink(hash, c.var.chain)} to be mined...`)
+          }
+        },
+      })
+      if (isInteractive) {
+        spinner.stop(`Dataset ${dataset?.dataSetId} terminated successfully.`)
+      }
+      return c.ok(waitForResult)
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to terminate the dataset'
+      if (isInteractive) {
+        spinner.error(msg)
+      }
+      if (c.options.debug) {
+        console.error(error)
+      }
+      return c.error({
+        code: 'DATASETS_FAILED',
+        message: msg,
+        retryable: true,
+      })
+    }
+  },
+})
+
+datasets.command('show', {
+  description: 'Show a dataset',
+  args: z.object({
+    id: z.coerce.bigint().describe('Dataset ID to show'),
+  }),
+  options: globalOptions,
+  middleware: [contextMiddleware],
+  run: async (c) => {
+    try {
+      const dataset = await getPdpDataSet(c.var.client, { dataSetId: c.args.id })
+      if (!dataset) {
+        return c.error({
+          code: 'DATASET_NOT_FOUND',
+          message: 'Dataset not found',
+          retryable: false,
+        })
+      }
+
+      return c.ok(dataset)
+    } catch (error) {
+      if (c.options.debug) {
+        console.error(error)
+      }
+      return c.error({
+        code: 'DATASETS_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to terminate the dataset',
         retryable: true,
       })
     }

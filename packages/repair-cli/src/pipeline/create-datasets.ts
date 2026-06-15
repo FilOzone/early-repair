@@ -18,14 +18,8 @@ export type EnsureRepairDatasetOptions = {
  * Ensure the repair dataset exists by creating it if it doesn't.
  *
  * @param options - The options for ensuring the repair dataset.
- * @returns {Promise<bigint>} - The ID of the created dataset.
  */
-export async function ensureRepairDataset({
-  localDb,
-  indexerDb,
-  client,
-  repair,
-}: EnsureRepairDatasetOptions): Promise<bigint> {
+export async function ensureRepairDataset({ localDb, indexerDb, client, repair }: EnsureRepairDatasetOptions) {
   const log = p.taskLog({
     title: 'Ensuring repair dataset',
   })

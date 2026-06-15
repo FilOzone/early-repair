@@ -16,6 +16,15 @@ export const contextSchema = z.object({
 
 export const contextMiddleware = middleware<typeof contextSchema>(async (c, next) => {
   const { dbPath, chainId, indexerMainnetUrl, indexerCalibrationUrl } = config.store
+
+  if (!dbPath || !chainId || !indexerMainnetUrl || !indexerCalibrationUrl) {
+    return c.error({
+      code: 'CONFIG_NOT_SET',
+      message: 'Config not set. Please run `repair setup` first.',
+      retryable: false,
+    })
+  }
+
   const localDb = await createLocalDatabase(dbPath)
   const indexerDb = drizzlePostgres(chainId === 314 ? indexerMainnetUrl : indexerCalibrationUrl, {
     schema: indexerSchema,

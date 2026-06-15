@@ -52,7 +52,7 @@ importers:
         version: 13.4.2
       ponder:
         specifier: npm:@rvagg/ponder@^0.16.6
-        version: '@rvagg/ponder@0.16.6(@libsql/client@0.17.3)(@opentelemetry/api@1.9.1)(@types/node@25.9.2)(@types/pg@8.20.0)(hono@4.12.23)(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))'
+        version: '@rvagg/ponder@0.16.6(@libsql/client@0.17.3)(@opentelemetry/api@1.9.1)(@types/node@25.9.2)(@types/pg@8.20.0)(hono@4.12.23)(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3))'
       viem:
         specifier: 'catalog:'
         version: 2.51.3(typescript@6.0.3)(zod@4.4.3)
@@ -76,8 +76,8 @@ importers:
         specifier: ^1.5.1
         version: 1.5.1
       '@filoz/synapse-core':
-        specifier: ^0.6.0
-        version: 0.6.0(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))
+        specifier: ^0.7.0
+        version: 0.7.0(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))
       '@libsql/client':
         specifier: ^0.17.3
         version: 0.17.3
@@ -93,6 +93,9 @@ importers:
       iso-base:
         specifier: ^4.4.0
         version: 4.4.0
+      iso-conf:
+        specifier: ^0.4.0
+        version: 0.4.0
       iso-web:
         specifier: ^3.1.2
         version: 3.1.2
@@ -571,8 +574,8 @@ packages:
   '@fastify/busboy@3.2.0':
     resolution: {integrity: sha512-m9FVDXU3GT2ITSe0UaMA5rU3QkfC/UXtCU8y0gSN/GugTqtVldOBWIB5V6V3sbmenVZUIpU6f+mPEO2+m5iTaA==}
 
-  '@filoz/synapse-core@0.6.0':
-    resolution: {integrity: sha512-+2sR5PQBuyNoEsaW5arBQvXzyvV7Rg9aIyHym/iCdFLLDDze8pMrnrpdG9OHctYzNI9MreFBkVOqSHFj81qjUw==}
+  '@filoz/synapse-core@0.7.0':
+    resolution: {integrity: sha512-54G+yH1DrqXpCrtSZF5SYvNma3W2iA/LH6hLWmADy5tW1CkPlvtHZ5essqrJtlk3lfNRYMWk3+13ejzXxDAWWw==}
     peerDependencies:
       viem: 2.x
 
@@ -939,6 +942,9 @@ packages:
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
+  '@standard-schema/utils@0.3.0':
+    resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
+
   '@toon-format/toon@2.3.0':
     resolution: {integrity: sha512-/Ew9etdRQKVMnm9fDaCG0JjyAOK/O7T0M97oum1aW4W+UR8ZhVVPBanIV7oWgHBiGlnVxV9M55PWQCHofDV07w==}
 
@@ -950,6 +956,9 @@ packages:
 
   '@types/node@25.9.2':
     resolution: {integrity: sha512-G05zqtJhcDLb8uslf5EjCxXg9G1KQxiV8OS0R26IC//Eoyitzqe8z37I7cqvnZlrlSfgocQRfSn/AHBZJJFyGw==}
+
+  '@types/node@25.9.3':
+    resolution: {integrity: sha512-603BddQMv3pUcr4U2dhujk83N2tTDVr/34wII2B6bJy6g+8WD6yUb11jszNs0gdi4PesVWl7ABt8nYMVpnLUcg==}
 
   '@types/pg@8.20.0':
     resolution: {integrity: sha512-bEPFOaMAHTEP1EzpvHTbmwR8UsFyHSKsRisLIHVMXnpNefSbGA1bD6CVy+qKjGSqmZqNqBDV2azOBo8TgkcVow==}
@@ -1479,6 +1488,10 @@ packages:
     resolution: {integrity: sha512-dtJUTepzMW3Lm/NPxRf3wP4642UWhjL2sQxc+ym2YMj1m/H2zDNQOlezafzkHwn6sMstjHTwG6iQQsctDW/b1A==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
 
+  env-paths@4.0.0:
+    resolution: {integrity: sha512-pxP8eL2SwwaTRi/KHYwLYXinDs7gL3jxFcBYmEdYfZmZXbaVDvdppd0XBU8qVz03rDfKZMXg1omHCbsJjZrMsw==}
+    engines: {node: '>=20'}
+
   environment@1.1.0:
     resolution: {integrity: sha512-xUtoPkMggbz0MPyPiIWr1Kp4aeWJjDZ6SMvURhimjdZgsRuDplF5/s9hcgGhyXMhs+6vpnuoiZ2kFiu3FMnS8Q==}
     engines: {node: '>=18'}
@@ -1782,6 +1795,10 @@ packages:
     resolution: {integrity: sha512-MjYsKHO5O7mCsmRGxWcLWheFqN9DJ/2TmngvjKXihe6efViPqc274+Fx/4fYj/r03+ESvBdTXK0V6tA3rgez1g==}
     engines: {node: '>= 0.4'}
 
+  is-safe-filename@0.1.1:
+    resolution: {integrity: sha512-4SrR7AdnY11LHfDKTZY1u6Ga3RuxZdl3YKWWShO5iyuG5h8QS4GD2tOb04peBJ5I7pXbR+CGBNEhTcwK+FzN3g==}
+    engines: {node: '>=20'}
+
   is-stream@2.0.1:
     resolution: {integrity: sha512-hFoiJiTl63nn+kstHGBtewWSKnQLpyb155KHheA1l39uvtO9nWIop1p3udqPcUd/xbF1VLMO4n7OI6p7RbngDg==}
     engines: {node: '>=8'}
@@ -1811,6 +1828,9 @@ packages:
 
   iso-base@4.4.0:
     resolution: {integrity: sha512-W4BJbRDBi66wcBFJ23ZlGnFOZ874CIut4y9PlsScMSYu7ckCX+MWNAaEoE0efTSYDoVEn1qy0FDVSjE8q0ieHw==}
+
+  iso-conf@0.4.0:
+    resolution: {integrity: sha512-sao0epcCXbNVzoJDWsL68b7FeI8/vLvOZV9VFa0wg6pOAVMfiYKZuKKhZxqxpgsr6RyNj6/WairckHzK/eyyWQ==}
 
   iso-kv@3.2.0:
     resolution: {integrity: sha512-rMVXO7zDEecXOJEiDnbDqjZ7gSe7VqDn2FTkUFWeqkcYMmgMdmB7pDgUaZxiEyiL1+gO7RnbqEI2Ce3xIW4UBQ==}
@@ -2576,6 +2596,7 @@ packages:
   tsconfck@3.1.6:
     resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
     engines: {node: ^18 || >=20}
+    deprecated: unmaintained
     hasBin: true
     peerDependencies:
       typescript: ^5.0.0
@@ -3047,7 +3068,7 @@ snapshots:
 
   '@fastify/busboy@3.2.0': {}
 
-  '@filoz/synapse-core@0.6.0(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))':
+  '@filoz/synapse-core@0.7.0(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))':
     dependencies:
       dnum: 2.17.0
       iso-web: 3.1.2
@@ -3240,7 +3261,7 @@ snapshots:
 
   '@polka/url@1.0.0-next.29': {}
 
-  '@ponder/utils@0.2.18(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))':
+  '@ponder/utils@0.2.18(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3))':
     dependencies:
       viem: 2.51.3(typescript@6.0.3)(zod@4.4.3)
     optionalDependencies:
@@ -3323,7 +3344,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.60.4':
     optional: true
 
-  '@rvagg/ponder@0.16.6(@libsql/client@0.17.3)(@opentelemetry/api@1.9.1)(@types/node@25.9.2)(@types/pg@8.20.0)(hono@4.12.23)(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))':
+  '@rvagg/ponder@0.16.6(@libsql/client@0.17.3)(@opentelemetry/api@1.9.1)(@types/node@25.9.2)(@types/pg@8.20.0)(hono@4.12.23)(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3))':
     dependencies:
       '@babel/code-frame': 7.29.7
       '@commander-js/extra-typings': 12.1.0(commander@12.1.0)
@@ -3332,7 +3353,7 @@ snapshots:
       '@escape.tech/graphql-armor-max-depth': 2.4.2
       '@escape.tech/graphql-armor-max-tokens': 2.5.1
       '@hono/node-server': 1.19.5(hono@4.12.23)
-      '@ponder/utils': 0.2.18(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))
+      '@ponder/utils': 0.2.18(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3))
       abitype: 0.10.3(typescript@6.0.3)
       ansi-escapes: 7.3.0
       commander: 12.1.0
@@ -3426,6 +3447,8 @@ snapshots:
 
   '@standard-schema/spec@1.1.0': {}
 
+  '@standard-schema/utils@0.3.0': {}
+
   '@toon-format/toon@2.3.0': {}
 
   '@types/estree@1.0.8': {}
@@ -3436,15 +3459,19 @@ snapshots:
     dependencies:
       undici-types: 7.24.6
 
+  '@types/node@25.9.3':
+    dependencies:
+      undici-types: 7.24.6
+
   '@types/pg@8.20.0':
     dependencies:
-      '@types/node': 25.9.2
+      '@types/node': 25.9.3
       pg-protocol: 1.14.0
       pg-types: 2.2.0
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 25.9.2
+      '@types/node': 25.9.3
 
   '@whatwg-node/disposablestack@0.0.6':
     dependencies:
@@ -3804,6 +3831,10 @@ snapshots:
 
   env-paths@3.0.0: {}
 
+  env-paths@4.0.0:
+    dependencies:
+      is-safe-filename: 0.1.1
+
   environment@1.1.0: {}
 
   es-define-property@1.0.1: {}
@@ -4141,6 +4172,8 @@ snapshots:
       has-tostringtag: 1.0.2
       hasown: 2.0.3
 
+  is-safe-filename@0.1.1: {}
+
   is-stream@2.0.1: {}
 
   is-stream@3.0.0: {}
@@ -4160,6 +4193,15 @@ snapshots:
   iso-base@4.4.0:
     dependencies:
       bigint-mod-arith: 3.3.1
+
+  iso-conf@0.4.0:
+    dependencies:
+      '@standard-schema/spec': 1.1.0
+      '@standard-schema/utils': 0.3.0
+      atomically: 2.1.1
+      dot-prop: 10.1.0
+      env-paths: 4.0.0
+      iso-base: 4.4.0
 
   iso-kv@3.2.0:
     dependencies:

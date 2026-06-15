@@ -21,7 +21,7 @@ export async function getRepairDataset({
 }: GetRepairDatasetOptions): Promise<bigint | null> {
   const schema = indexerDb._.fullSchema
 
-  const [row] = await indexerDb
+  const result = await indexerDb
     .select({
       dataSetId: schema.dataSets.dataSetId,
     })
@@ -40,5 +40,9 @@ export async function getRepairDataset({
     .orderBy(asc(schema.dataSets.dataSetId))
     .limit(1)
 
-  return row.dataSetId ?? null
+  if (result.length === 0) {
+    return null
+  }
+
+  return result[0].dataSetId
 }
