@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.1.1...repair-cli-v0.1.2) (2026-06-15)
+
+
+### Bug Fixes
+
+* update synapse and add terminate dataset ([a871ae7](https://github.com/FilOzone/early-repair/commit/a871ae76dd4da45d87605c35b3b73b43acabb568))
+
 ## [0.1.1](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.1.0...repair-cli-v0.1.1) (2026-06-12)
 
 
