@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.1.2...repair-cli-v0.2.0) (2026-06-18)
+
+
+### Features
+
+* enhance repair CLI with replication functionality ([3acf6c1](https://github.com/FilOzone/early-repair/commit/3acf6c1c77718adad45a2a46950235448b615d53))
+
 ## [0.1.2](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.1.1...repair-cli-v0.1.2) (2026-06-15)
 
 
