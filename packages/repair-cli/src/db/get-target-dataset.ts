@@ -6,7 +6,7 @@ import type { LocalDatabase, WalletClient } from '../types.ts'
 const targetDatasetCache = new Map<number, getDataSet.OutputType>()
 
 /**
- * Get the single IPFS-enabled target dataset for a repair.
+ * Get a targetdataset for a repair.
  *
  * @param options - The options for getting the target dataset.
  */

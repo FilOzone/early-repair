@@ -1,73 +1,74 @@
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm'
 import { Cli, z } from 'incur'
-import { repairCreate } from '../db/repair-create.ts'
 import { repairDelete } from '../db/repair-delete.ts'
+import { replicateCreate } from '../db/replicate-create.ts'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
 import { runAddPieces } from '../pipeline/add-pieces.ts'
-import { ensureRepairDataset } from '../pipeline/create-datasets.ts'
+import { ensureReplicateDataset } from '../pipeline/create-datasets.ts'
 import { globalOptions } from '../utils.ts'
 
-export const repair = Cli.create('repair', {
-  description: 'Repair commands',
+export const replicate = Cli.create('replicate', {
+  description: 'Replicate dataset commands',
   vars: contextSchema,
 })
 
-repair.command('create', {
-  description: 'Create a new repair',
+replicate.command('create', {
+  description: 'Create a new dataset replication',
   options: globalOptions.extend({
-    providerId: z.coerce.bigint().describe('Provider ID to repair'),
-    targetProviderId: z.coerce.bigint().describe('Target provider ID for repair'),
+    dataSetId: z.coerce.bigint().describe('Dataset ID to replicate'),
+    targetProviderId: z.coerce.bigint().describe('Target provider ID for replication'),
   }),
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
-      const { providerId, targetProviderId } = c.options
+      const { dataSetId, targetProviderId } = c.options
 
-      const repairId = await repairCreate({
+      const replicateId = await replicateCreate({
         ...c.var,
-        repairProviderId: providerId,
+        dataSetId,
         targetProviderId,
       })
 
       return c.ok({
-        repairId,
+        replicateId,
       })
     } catch (error) {
       console.error(error)
       return c.error({
-        code: 'REPAIR_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to repair the dataset',
+        code: 'REPLICATE_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to replicate the dataset',
         retryable: true,
       })
     }
   },
 })
 
-repair.command('list', {
-  description: 'List all repairs',
+replicate.command('list', {
+  description: 'List all replications',
   options: globalOptions,
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
       const localSchema = c.var.localDb._.fullSchema
-      const repairs = await c.var.localDb.query.repairs.findMany({
-        where: isNull(localSchema.repairs.repairDataSetId),
+      const replications = await c.var.localDb.query.repairs.findMany({
+        where: isNotNull(localSchema.repairs.repairDataSetId),
         orderBy: [desc(localSchema.repairs.createdAt)],
         with: {
           operations: true,
         },
       })
 
-      const repairFlattened = repairs.map((repair) => {
-        const { operations, ...repairWithoutOperations } = repair
+      const replicationsFlattened = replications.map((repair) => {
+        const { operations, ...replicationWithoutOperations } = repair
         return {
-          id: repairWithoutOperations.id,
-          status: repairWithoutOperations.status,
-          repairProviderId: repairWithoutOperations.repairProviderId,
-          targetProviderId: repairWithoutOperations.targetProviderId,
-          targetProviderUrl: repairWithoutOperations.targetProviderUrl,
-          targetDataSetId: repairWithoutOperations.targetDataSetId,
-          blockNumber: repairWithoutOperations.blockNumber,
+          id: replicationWithoutOperations.id,
+          status: replicationWithoutOperations.status,
+          sourceProviderId: replicationWithoutOperations.repairProviderId,
+          sourceDataSetId: replicationWithoutOperations.repairDataSetId,
+          targetProviderId: replicationWithoutOperations.targetProviderId,
+          targetProviderUrl: replicationWithoutOperations.targetProviderUrl,
+          targetDataSetId: replicationWithoutOperations.targetDataSetId,
+          blockNumber: replicationWithoutOperations.blockNumber,
           operations: operations.length,
           pending: operations.filter((operation) => operation.status === 'pending').length,
           failed: operations.filter((operation) => operation.status === 'failed').length,
@@ -77,23 +78,23 @@ repair.command('list', {
       })
 
       return c.ok({
-        repairs: repairFlattened,
+        replications: replicationsFlattened,
       })
     } catch (error) {
       console.error(error)
       return c.error({
-        code: 'REPAIR_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to repair the dataset',
+        code: 'REPLICATE_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to list replications',
         retryable: true,
       })
     }
   },
 })
 
-repair.command('delete', {
-  description: 'Delete a repair',
+replicate.command('delete', {
+  description: 'Delete a replication',
   args: z.object({
-    repairId: z.coerce.number().describe('Repair ID to delete'),
+    replicateId: z.coerce.number().describe('Replication ID to delete'),
   }),
   options: globalOptions,
   middleware: [contextMiddleware],
@@ -101,36 +102,36 @@ repair.command('delete', {
     try {
       const { deleted, operationsDeleted } = await repairDelete({
         localDb: c.var.localDb,
-        repairId: c.args.repairId,
+        repairId: c.args.replicateId,
       })
 
       if (!deleted) {
         return c.error({
-          code: 'REPAIR_NOT_FOUND',
-          message: 'Repair not found',
+          code: 'REPLICATE_NOT_FOUND',
+          message: 'Replication not found',
           retryable: false,
         })
       }
 
       return c.ok({
-        repairId: c.args.repairId,
+        replicateId: c.args.replicateId,
         operationsDeleted,
       })
     } catch (error) {
       console.error(error)
       return c.error({
-        code: 'REPAIR_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to delete the repair',
+        code: 'REPLICATE_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to delete the replication',
         retryable: true,
       })
     }
   },
 })
 
-repair.command('run', {
-  description: 'Run a repair',
+replicate.command('run', {
+  description: 'Run a replication',
   args: z.object({
-    repairId: z.coerce.number().describe('Repair ID to run'),
+    replicateId: z.coerce.number().describe('Replication ID to run'),
   }),
   options: globalOptions.extend({
     concurrency: z.coerce.number().min(1).max(10).default(4).describe('Concurrency level'),
@@ -142,22 +143,23 @@ repair.command('run', {
       const schema = c.var.localDb._.fullSchema
       const repair = await c.var.localDb.query.repairs.findFirst({
         where: and(
-          eq(schema.repairs.id, c.args.repairId),
+          eq(schema.repairs.id, c.args.replicateId),
           inArray(schema.repairs.status, ['pending', 'failed']),
-          isNull(schema.repairs.repairDataSetId)
+          isNotNull(schema.repairs.repairDataSetId)
         ),
       })
       if (!repair) {
         return c.error({
-          code: 'REPAIR_NOT_FOUND',
-          message: 'Repair not found, it may have already been run or completed',
+          code: 'REPLICATE_NOT_FOUND',
+          message: 'Replication not found, it may have already been run or completed',
           retryable: false,
         })
       }
 
-      await ensureRepairDataset({
+      await ensureReplicateDataset({
         ...c.var,
         repair,
+        source: c.var.source,
       })
 
       await runAddPieces({
@@ -167,13 +169,13 @@ repair.command('run', {
         batchSize: c.options.batchSize,
       })
       return c.ok({
-        repairId: repair.id,
+        replicateId: repair.id,
       })
     } catch (error) {
       console.error(error)
       return c.error({
-        code: 'REPAIR_FAILED',
-        message: error instanceof Error ? error.message : 'Failed to repair the dataset',
+        code: 'REPLICATE_FAILED',
+        message: error instanceof Error ? error.message : 'Failed to replicate the dataset',
         retryable: true,
       })
     }

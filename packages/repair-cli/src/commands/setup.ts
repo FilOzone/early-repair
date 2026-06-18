@@ -114,12 +114,28 @@ export const setup = Cli.create('setup', {
         })
       }
 
+      const source = await p.text({
+        message: 'Enter your source',
+        placeholder: 'Dataset source',
+        defaultValue: 'early-repair',
+        initialValue: config.get('source'),
+        withGuide: false,
+      })
+      if (p.isCancel(source)) {
+        return c.error({
+          code: 'SETUP_CANCELLED',
+          message: 'Setup cancelled',
+          retryable: false,
+        })
+      }
+
       // Set config
       config.set('privateKey', pk)
       config.set('indexerMainnetUrl', indexerMainnetUrl)
       config.set('indexerCalibrationUrl', indexerCalibrationUrl)
       config.set('chainId', chainId)
       config.set('dbPath', dbPath)
+      config.set('source', source)
 
       // setup database
       const db = await createLocalDatabase(dbPath)

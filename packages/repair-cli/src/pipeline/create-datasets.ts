@@ -1,13 +1,15 @@
 import * as p from '@clack/prompts'
 import * as SP from '@filoz/synapse-core/sp'
 import { getPDPProvider } from '@filoz/synapse-core/sp-registry'
-import { getRepairDataset } from '../db/get-repair-dataset.ts'
+import { eq } from 'drizzle-orm'
+import { findRepairDataset } from '../db/find-repair-dataset.ts'
 import { repairUpdate } from '../db/repair-update.ts'
 import type { RepairSelect } from '../local-schema.ts'
 import type { IndexerDatabase, LocalDatabase, WalletClient } from '../types.ts'
-import { getRepairDatasetMetadata, hashLink } from '../utils.ts'
+import { hashLink } from '../utils.ts'
 
 export type EnsureRepairDatasetOptions = {
+  source: string
   localDb: LocalDatabase
   indexerDb: IndexerDatabase
   client: WalletClient
@@ -19,7 +21,7 @@ export type EnsureRepairDatasetOptions = {
  *
  * @param options - The options for ensuring the repair dataset.
  */
-export async function ensureRepairDataset({ localDb, indexerDb, client, repair }: EnsureRepairDatasetOptions) {
+export async function ensureRepairDataset({ source, localDb, indexerDb, client, repair }: EnsureRepairDatasetOptions) {
   const log = p.taskLog({
     title: 'Ensuring repair dataset',
   })
@@ -31,10 +33,11 @@ export async function ensureRepairDataset({ localDb, indexerDb, client, repair }
 
   let datasetId: bigint | null = null
   // check if dataset already exists
-  const existingDatasetId = await getRepairDataset({
+  const existingDatasetId = await findRepairDataset({
     indexerDb,
     providerId: repair.targetProviderId,
     payer: client.account.address,
+    source,
   })
 
   if (existingDatasetId) {
@@ -46,7 +49,10 @@ export async function ensureRepairDataset({ localDb, indexerDb, client, repair }
       serviceURL: provider.pdp.serviceURL,
       payer: client.account.address,
       cdn: false,
-      metadata: getRepairDatasetMetadata(),
+      metadata: {
+        source,
+        withIPFSIndexing: '',
+      },
     })
     log.message(`Waiting for data to be created at ${provider.pdp.serviceURL} ${hashLink(txHash, client.chain)}...`)
     const waitForResult = await SP.waitForCreateDataSet({
@@ -55,6 +61,66 @@ export async function ensureRepairDataset({ localDb, indexerDb, client, repair }
     datasetId = waitForResult.dataSetId
     log.success(`Data set #${datasetId} created at ${provider.pdp.serviceURL}`)
   }
+  await repairUpdate({
+    localDb,
+    repairId: repair.id,
+    targetDataSetId: datasetId,
+  })
+  return datasetId
+}
+
+/**
+ * Ensure a replication target dataset exists by creating a fresh dataset with source metadata.
+ *
+ * @param options - The options for ensuring the replication dataset.
+ */
+export async function ensureReplicateDataset({ localDb, indexerDb, client, repair }: EnsureRepairDatasetOptions) {
+  const log = p.taskLog({
+    title: 'Ensuring replication dataset',
+  })
+
+  if (repair.repairDataSetId == null) {
+    throw new Error('Missing source dataset ID')
+  }
+
+  const provider = await getPDPProvider(client, {
+    providerId: repair.targetProviderId,
+  })
+
+  if (!provider) throw new Error(`Target provider ${repair.targetProviderId} not found or inactive`)
+
+  if (repair.targetDataSetId != null) {
+    log.success(`Data set #${repair.targetDataSetId} already exists at ${provider.pdp.serviceURL}`)
+    return repair.targetDataSetId
+  }
+
+  const schema = indexerDb._.fullSchema
+  const sourceDataSet = await indexerDb.query.dataSets.findFirst({
+    where: eq(schema.dataSets.dataSetId, repair.repairDataSetId),
+    columns: {
+      metadata: true,
+      withCdn: true,
+    },
+  })
+
+  if (!sourceDataSet) {
+    throw new Error(`Source dataset ${repair.repairDataSetId} not found`)
+  }
+
+  const { txHash, statusUrl } = await SP.createDataSet(client, {
+    payee: provider.payee,
+    serviceURL: provider.pdp.serviceURL,
+    payer: client.account.address,
+    cdn: sourceDataSet.withCdn,
+    metadata: sourceDataSet.metadata ?? undefined,
+  })
+  log.message(`Waiting for data to be created at ${provider.pdp.serviceURL} ${hashLink(txHash, client.chain)}...`)
+  const waitForResult = await SP.waitForCreateDataSet({
+    statusUrl,
+  })
+  const datasetId = waitForResult.dataSetId
+  log.success(`Data set #${datasetId} created at ${provider.pdp.serviceURL}`)
+
   await repairUpdate({
     localDb,
     repairId: repair.id,

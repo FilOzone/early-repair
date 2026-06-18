@@ -4,10 +4,10 @@
 
 > Early repair for faulty service providers and datasets
 
-The `repair` CLI helps prepare and run repair jobs that move pieces away from a faulty Filecoin service provider and into a target PDP provider. It uses:
+The `repair` CLI helps prepare and run repair and replication jobs on Filecoin PDP datasets. It uses:
 
 - an indexer Postgres database as the read-only source of providers, datasets, and pieces
-- a local SQLite database to track repair jobs and per-piece operations
+- a local SQLite database to track repair and replication jobs and per-piece operations
 - a configured Filecoin wallet to create datasets and submit on-chain add-piece transactions
 
 ## Installation
@@ -37,6 +37,7 @@ Setup prompts for:
 - calibration indexer Postgres URL
 - chain, either Filecoin Mainnet `314` or Filecoin Calibration `314159`
 - local SQLite database path
+- dataset source label, used when creating repair target datasets (defaults to `early-repair`)
 
 The command stores these values in the CLI config and runs the local SQLite schema migration. It returns the configured wallet address.
 
@@ -58,7 +59,7 @@ Interactive configuration and local database setup.
 repair setup
 ```
 
-Use this whenever you need to initialize the CLI, change the active chain, update indexer URLs, or move the local SQLite database.
+Use this whenever you need to initialize the CLI, change the active chain, update indexer URLs, change the dataset source label, or move the local SQLite database.
 
 ### `repair wallet fund`
 
@@ -140,6 +141,26 @@ Filter by provider ID:
 repair datasets list --provider-id 123
 ```
 
+### `repair datasets show <id>`
+
+Shows a dataset from the configured indexer.
+
+```bash
+repair datasets show 42
+```
+
+The output includes the dataset record, its provider, and active pieces.
+
+### `repair datasets terminate <id>`
+
+Terminates a dataset owned by the configured wallet.
+
+```bash
+repair datasets terminate 42
+```
+
+The command submits the on-chain terminate transaction, waits for it to be mined, and returns the result.
+
 ### `repair repair create`
 
 Creates a local repair plan for a source provider and a target provider.
@@ -165,11 +186,13 @@ repair repair list
 Each repair includes:
 
 - repair ID and status
-- source provider ID
+- repair provider ID
 - target provider ID and target provider URL
 - target dataset ID, when one has been created or found
 - block number used when the repair was created
 - total operations and counts by `pending`, `failed`, `completed`, and `skipped`
+
+This command lists provider-level repairs only. Dataset replications are listed with `repair replicate list`.
 
 ### `repair repair run <repairId>`
 
@@ -179,18 +202,17 @@ Runs a pending repair.
 repair repair run 1
 ```
 
-The command first ensures the target repair dataset exists for the configured wallet and target provider. If no matching dataset exists, it creates one with IPFS indexing enabled and CDN disabled. Then it processes pending `add_piece` operations by pulling pieces from alternate providers into the target provider and committing them on-chain.
+The command first ensures the target repair dataset exists for the configured wallet and target provider. If no matching dataset exists, it creates one with IPFS indexing enabled and CDN disabled, using the configured source label. Then it processes pending `add_piece` operations by pulling pieces from alternate providers into the target provider and committing them on-chain.
 
 Options:
 
 - `--concurrency <number>` controls how many pull batches run at once. Defaults to `4`.
 - `--batch-size <number>` controls the maximum number of `add_piece` operations per batch. Defaults to `40`.
-- `--reset` retries failed `add_piece` operations as well as pending operations.
 
 Example:
 
 ```bash
-repair repair run 1 --concurrency 8 --batch-size 40 --reset
+repair repair run 1 --concurrency 8 --batch-size 40
 ```
 
 ### `repair repair delete <repairId>`
@@ -199,6 +221,68 @@ Deletes a local repair and its operations.
 
 ```bash
 repair repair delete 1
+```
+
+This only deletes local SQLite state. It does not delete on-chain datasets or remove pieces from a provider.
+
+### `repair replicate create`
+
+Creates a local replication plan for a source dataset and a target provider.
+
+```bash
+repair replicate create --data-set-id 42 --target-provider-id 202
+```
+
+`--data-set-id` is the source dataset whose pieces should be replicated.
+
+`--target-provider-id` is the provider that should receive the replicated pieces. It must be different from the source dataset's provider.
+
+The command snapshots the current chain block number, creates a local replication row, and creates local `add_piece` operations for every active piece in the source dataset. Pieces are pulled from the source dataset's provider, not from alternate providers. The command returns a `replicateId`.
+
+### `repair replicate list`
+
+Lists local dataset replications.
+
+```bash
+repair replicate list
+```
+
+Each replication includes:
+
+- replication ID and status
+- source provider ID and source dataset ID
+- target provider ID and target provider URL
+- target dataset ID, when one has been created
+- block number used when the replication was created
+- total operations and counts by `pending`, `failed`, `completed`, and `skipped`
+
+### `repair replicate run <replicateId>`
+
+Runs a pending replication.
+
+```bash
+repair replicate run 1
+```
+
+The command creates a new target dataset on the target provider, copying CDN and metadata settings from the source dataset. Then it processes pending `add_piece` operations by pulling pieces from the source provider into the target provider and committing them on-chain.
+
+Options:
+
+- `--concurrency <number>` controls how many pull batches run at once. Defaults to `4`.
+- `--batch-size <number>` controls the maximum number of `add_piece` operations per batch. Defaults to `40`.
+
+Example:
+
+```bash
+repair replicate run 1 --concurrency 8 --batch-size 40
+```
+
+### `repair replicate delete <replicateId>`
+
+Deletes a local replication and its operations.
+
+```bash
+repair replicate delete 1
 ```
 
 This only deletes local SQLite state. It does not delete on-chain datasets or remove pieces from a provider.
@@ -236,6 +320,25 @@ repair providers list
 repair repair create --provider-id 101 --target-provider-id 202
 repair repair list
 repair repair run 1
+```
+
+### Replicating a dataset
+
+Use replication when you want to copy an entire dataset to another provider, rather than repairing all pieces on a faulty provider.
+
+1. Find the source dataset.
+
+```bash
+repair datasets list
+repair datasets show 42
+```
+
+1. Create, inspect, and run the replication.
+
+```bash
+repair replicate create --data-set-id 42 --target-provider-id 202
+repair replicate list
+repair replicate run 1
 ```
 
 ## Contributing

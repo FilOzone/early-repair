@@ -1,5 +1,7 @@
 import type { MetadataObject } from '@filoz/synapse-core'
 import { type Chain, getChain } from '@filoz/synapse-core/chains'
+import * as Piece from '@filoz/synapse-core/piece'
+import type * as SP from '@filoz/synapse-core/sp'
 import { getTableColumns, type SQL, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/libsql'
 import type { PgTable } from 'drizzle-orm/pg-core'
@@ -12,10 +14,9 @@ import terminalLink from 'terminal-link'
 import { createWalletClient, type Hex, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import packageJson from '../package.json' with { type: 'json' }
+import type { OperationSelect } from './local-schema.ts'
 import * as schema from './local-schema.ts'
 import type { LocalDatabase } from './types.ts'
-
-export const EARLY_REPAIR_SOURCE = 'early-repair6'
 
 export const configSchema = z.object({
   privateKey: z.string().optional(),
@@ -95,11 +96,19 @@ export async function migrateLocalDatabase(db: LocalDatabase) {
       target_provider_id text NOT NULL,
       target_provider_url text NOT NULL,
       target_data_set_id text,
+      repair_data_set_id text,
       block_number text NOT NULL,
       created_at integer NOT NULL,
       updated_at integer NOT NULL
     )
   `)
+  try {
+    await db.$client.execute(`
+      ALTER TABLE repairs ADD COLUMN repair_data_set_id text
+    `)
+  } catch {
+    // Column already exists on databases created with the updated schema.
+  }
   await db.$client.execute(`
     CREATE TABLE IF NOT EXISTS operations (
       id integer PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -128,14 +137,6 @@ export async function migrateLocalDatabase(db: LocalDatabase) {
 export function hashLink(hash: string, chain: Chain) {
   const link = terminalLink(hash, `${chain.blockExplorers?.default?.url}/tx/${hash}`)
   return link
-}
-
-/** Get metadata for the single IPFS-enabled repair dataset. */
-export function getRepairDatasetMetadata(): MetadataObject {
-  return {
-    source: EARLY_REPAIR_SOURCE,
-    withIPFSIndexing: '',
-  }
 }
 
 /**
@@ -199,4 +200,42 @@ export const buildConflictUpdateColumns = <T extends PgTable | SQLiteTable, Q ex
   )
 
   return r
+}
+
+/**
+ * Filter out operations by CID
+ */
+export function excludeOperationsByCid(operations: OperationSelect[], cid: string) {
+  const operationToCommit: OperationSelect[] = []
+  const operationToFailed: OperationSelect[] = []
+  for (const operation of operations) {
+    if (operation.cid === cid) {
+      operationToFailed.push(operation)
+    } else {
+      operationToCommit.push(operation)
+    }
+  }
+  return { operationToCommit, operationToFailed }
+}
+
+/**
+ * Convert operations to pull pieces deduped by CID
+ */
+export function operationsToPullPieces(operations: OperationSelect[]) {
+  const cids = new Set<string>()
+  const pieces: SP.PullPieceInput[] = []
+  for (const operation of operations) {
+    if (cids.has(operation.cid)) {
+      continue
+    }
+    pieces.push({
+      sourceUrl: Piece.createPieceUrlPDP({
+        cid: operation.cid,
+        serviceURL: operation.alternateProvider,
+      }),
+      pieceCid: Piece.from(operation.cid),
+    })
+    cids.add(operation.cid)
+  }
+  return pieces
 }

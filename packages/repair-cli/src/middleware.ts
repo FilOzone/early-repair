@@ -12,12 +12,13 @@ export const contextSchema = z.object({
   config: z.custom<typeof config>(),
   client: z.custom<Client<Transport, Chain, Account>>(),
   chain: z.custom<Chain>(),
+  source: z.string(),
 })
 
 export const contextMiddleware = middleware<typeof contextSchema>(async (c, next) => {
-  const { dbPath, chainId, indexerMainnetUrl, indexerCalibrationUrl } = config.store
+  const { dbPath, chainId, indexerMainnetUrl, indexerCalibrationUrl, source } = config.store
 
-  if (!dbPath || !chainId || !indexerMainnetUrl || !indexerCalibrationUrl) {
+  if (!dbPath || !chainId || !indexerMainnetUrl || !indexerCalibrationUrl || !source) {
     return c.error({
       code: 'CONFIG_NOT_SET',
       message: 'Config not set. Please run `repair setup` first.',
@@ -36,6 +37,7 @@ export const contextMiddleware = middleware<typeof contextSchema>(async (c, next
   c.set('config', config)
   c.set('client', client)
   c.set('chain', chain)
+  c.set('source', source)
   await next()
 
   localDb.$client.close()

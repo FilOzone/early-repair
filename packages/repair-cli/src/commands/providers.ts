@@ -30,7 +30,6 @@ providers.command('list', {
       const filters: (SQLWrapper | undefined)[] = [
         eq(schema.providers.providerActive, true),
         eq(schema.providers.pdpProductActive, true),
-        // or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true)),
       ]
       if (!c.options.all) {
         filters.push(or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true)))

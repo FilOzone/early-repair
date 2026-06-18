@@ -3,7 +3,7 @@ import { and, asc, eq, isNull, lte, or } from 'drizzle-orm'
 import pMap from 'p-map'
 import type { OperationInsert } from '../local-schema.ts'
 import type { IndexerDatabase } from '../types.ts'
-import { getProvidersByCid } from './get-providers-by-cid.ts'
+import { findProvidersByCid } from './find-providers-by-cid.ts'
 
 /** Default page size when paginating pieces from the indexer. */
 export const DEFAULT_PIECES_PAGE_SIZE = 3000
@@ -42,6 +42,34 @@ export type GetPiecesPageResult = {
 
 /** Options for {@link forEachPiecesPage}; pagination state is managed internally. */
 export type ForEachPiecesPageOptions = Omit<GetPiecesPageOptions, 'offset' | 'seenCids'>
+
+/** Options for fetching one page of source-dataset pieces for replication. */
+export type GetDataSetPiecesPageOptions = {
+  indexerDb: IndexerDatabase
+  /** Source dataset whose pieces are being replicated. */
+  dataSetId: bigint
+  /** Local job row to attach operations to. */
+  repairId: number
+  /** Provider URL that serves the source dataset pieces. */
+  sourceProviderUrl: string
+  /** Max indexer rows per page. Defaults to {@link DEFAULT_PIECES_PAGE_SIZE}. */
+  limit?: number
+  /** SQL offset for the indexer query. */
+  offset?: number
+}
+
+/** Result of a single {@link getDataSetPiecesPage} call. */
+export type GetDataSetPiecesPageResult = {
+  /** `add_piece` operations ready to insert for this page. */
+  operations: OperationInsert[]
+  /** Whether another indexer page may exist after this one. */
+  hasMore: boolean
+  /** Offset to pass as `offset` on the next page. */
+  nextOffset: number
+}
+
+/** Options for {@link forEachDataSetPiecesPage}; pagination state is managed internally. */
+export type ForEachDataSetPiecesPageOptions = Omit<GetDataSetPiecesPageOptions, 'offset'>
 
 type PieceForOperation = {
   cid: string
@@ -107,10 +135,9 @@ export async function getPiecesPage({
   }
 
   // Resolve pull sources in one query per page; exclude the provider being repaired from alternates.
-  const providersByCid = await getProvidersByCid({
+  const providersByCid = await findProvidersByCid({
     indexerDb,
     cids: pieces.map((piece) => piece.cid),
-    excludedProviderIds: [],
     blockNumber,
   })
 
@@ -158,6 +185,53 @@ export async function getPiecesPage({
 }
 
 /**
+ * Fetch one page of pieces for a specific dataset and map them to replication operations.
+ *
+ * Unlike repairs, replication preserves source dataset ordering and does not dedupe repeated CIDs.
+ *
+ * @param options - Indexer connection, dataset context, and optional pagination state.
+ * @returns Operations for this page plus pagination cursors.
+ */
+export async function getDataSetPiecesPage({
+  indexerDb,
+  dataSetId,
+  repairId,
+  sourceProviderUrl,
+  limit = DEFAULT_PIECES_PAGE_SIZE,
+  offset = 0,
+}: GetDataSetPiecesPageOptions): Promise<GetDataSetPiecesPageResult> {
+  const schema = indexerDb._.fullSchema
+  const rows = await indexerDb
+    .select({
+      cid: schema.pieces.cid,
+      metadata: schema.pieces.metadata,
+    })
+    .from(schema.pieces)
+    .where(and(eq(schema.pieces.dataSetId, dataSetId), eq(schema.pieces.removed, false)))
+    .orderBy(asc(schema.pieces.pieceId))
+    .limit(limit)
+    .offset(offset)
+
+  const now = Date.now()
+  const operations: OperationInsert[] = rows.map(({ cid, metadata }) => ({
+    repairId,
+    type: 'add_piece',
+    status: 'pending',
+    cid,
+    metadata: metadata ?? {},
+    alternateProvider: sourceProviderUrl,
+    createdAt: now,
+    updatedAt: now,
+  }))
+
+  return {
+    operations,
+    hasMore: rows.length === limit,
+    nextOffset: offset + rows.length,
+  }
+}
+
+/**
  * Walk every page of `add_piece` operations for a provider, invoking `onPage` per batch.
  *
  * Manages `offset` and `seenCids` across pages so callers only handle inserts.
@@ -184,6 +258,34 @@ export async function forEachPiecesPage(
 
     offset = page.nextOffset
     seenCids = page.seenCids
+    hasMore = page.hasMore
+  }
+}
+
+/**
+ * Walk every page of `add_piece` operations for a source dataset, invoking `onPage` per batch.
+ *
+ * Replication pagination intentionally has no CID dedupe state so duplicate pieces are preserved.
+ *
+ * @param options - Same inputs as {@link getDataSetPiecesPage} except pagination cursor.
+ * @param onPage - Async handler for each page result (e.g. batch insert into local DB).
+ */
+export async function forEachDataSetPiecesPage(
+  options: ForEachDataSetPiecesPageOptions,
+  onPage: (page: GetDataSetPiecesPageResult) => Promise<void>
+): Promise<void> {
+  let offset = 0
+  let hasMore = true
+
+  while (hasMore) {
+    const page = await getDataSetPiecesPage({
+      ...options,
+      offset,
+    })
+
+    await onPage(page)
+
+    offset = page.nextOffset
     hasMore = page.hasMore
   }
 }

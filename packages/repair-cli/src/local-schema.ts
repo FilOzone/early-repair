@@ -51,6 +51,7 @@ export const repairs = table('repairs', {
   id: t.int().primaryKey({ autoIncrement: true }),
   status: t.text().$type<RepairStatus>().notNull().default('pending'),
   repairProviderId: bigintType('repair_provider_id').notNull(),
+  repairDataSetId: bigintType('repair_data_set_id'),
   targetProviderId: bigintType('target_provider_id').notNull(),
   targetProviderUrl: t.text('target_provider_url').notNull(),
   targetDataSetId: bigintType('target_data_set_id'),

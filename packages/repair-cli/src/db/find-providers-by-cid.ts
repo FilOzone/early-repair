@@ -1,10 +1,9 @@
-import { and, asc, eq, inArray, isNull, lte, notInArray, or } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNull, lte, or } from 'drizzle-orm'
 import type { IndexerDatabase, RepairProvider } from '../types.ts'
 
-export type GetProvidersByCidOptions = {
+export type FindProvidersByCidOptions = {
   indexerDb: IndexerDatabase
   cids: readonly string[]
-  excludedProviderIds: readonly bigint[]
   blockNumber: bigint
 }
 
@@ -20,12 +19,11 @@ export type ProvidersByCid = Record<string, RepairProvider[]>
  * included. Every requested CID is present in the result; CIDs with no alternate providers
  * map to an empty array.
  */
-export async function getProvidersByCid({
+export async function findProvidersByCid({
   indexerDb,
   cids,
-  excludedProviderIds,
   blockNumber,
-}: GetProvidersByCidOptions): Promise<ProvidersByCid> {
+}: FindProvidersByCidOptions): Promise<ProvidersByCid> {
   const schema = indexerDb._.fullSchema
   const providersByCid = Object.fromEntries(cids.map((cid) => [cid, []])) as ProvidersByCid
   if (cids.length === 0) return providersByCid
@@ -35,11 +33,8 @@ export async function getProvidersByCid({
     eq(schema.dataSets.deleted, false),
     or(isNull(schema.dataSets.pdpEndEpoch), lte(schema.dataSets.pdpEndEpoch, blockNumber)),
     eq(schema.pieces.removed, false),
-    // or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true)),
+    or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true)),
   ]
-  if (excludedProviderIds.length > 0) {
-    filters.push(notInArray(schema.dataSets.providerId, [...excludedProviderIds]))
-  }
 
   // Join through datasets because providers own datasets, while pieces only reference dataset IDs.
   const rows = await indexerDb

@@ -19,11 +19,6 @@ export async function repairDelete({ localDb, repairId }: RepairDeleteOptions): 
   const repair = await localDb.query.repairs.findFirst({
     where: eq(localSchema.repairs.id, repairId),
     columns: { id: true },
-    with: {
-      operations: {
-        columns: { id: true },
-      },
-    },
   })
 
   if (!repair) {

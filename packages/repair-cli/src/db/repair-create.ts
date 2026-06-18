@@ -47,6 +47,7 @@ export async function repairCreate(options: RepairCreateOptions): Promise<number
     .insert(localSchema.repairs)
     .values({
       repairProviderId,
+      repairDataSetId: null,
       targetProviderId: targetProvider.providerId,
       targetProviderUrl: targetProvider.serviceUrl,
       targetDataSetId: null,

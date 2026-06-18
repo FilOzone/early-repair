@@ -1,7 +1,7 @@
 import * as p from '@clack/prompts'
 import * as SP from '@filoz/synapse-core/sp'
 import { getPdpDataSet } from '@filoz/synapse-core/warm-storage'
-import { and, eq } from 'drizzle-orm'
+import { and, asc, eq } from 'drizzle-orm'
 import { Cli, z } from 'incur'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
 import { globalOptions, hashLink } from '../utils.ts'
@@ -32,8 +32,11 @@ datasets.command('list', {
         where: and(...conditions),
         with: {
           provider: true,
-          pieces: true,
+          pieces: {
+            where: eq(c.var.indexerDb._.fullSchema.pieces.removed, false),
+          },
         },
+        orderBy: [asc(schema.dataSets.dataSetId)],
       })
 
       const datasetsFlattened = datasets.map((dataset) => {
@@ -133,7 +136,16 @@ datasets.command('show', {
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
-      const dataset = await getPdpDataSet(c.var.client, { dataSetId: c.args.id })
+      const dataset = await c.var.indexerDb.query.dataSets.findFirst({
+        where: eq(c.var.indexerDb._.fullSchema.dataSets.dataSetId, c.args.id),
+        with: {
+          provider: true,
+          pieces: {
+            where: eq(c.var.indexerDb._.fullSchema.pieces.removed, false),
+          },
+        },
+      })
+
       if (!dataset) {
         return c.error({
           code: 'DATASET_NOT_FOUND',
@@ -141,7 +153,6 @@ datasets.command('show', {
           retryable: false,
         })
       }
-
       return c.ok(dataset)
     } catch (error) {
       if (c.options.debug) {
