@@ -6,19 +6,19 @@ export type UpdateOperationOptions = {
   localDb: LocalDatabase
   operationId: number
   status: localSchema.OperationStatus
-  result?: localSchema.OperationResult | null
+  txHash?: string | null
   error?: string | null
 }
 
 /**
  * Updates an operation in the database.
  */
-export async function updateOperation({ localDb, operationId, status, result, error }: UpdateOperationOptions) {
+export async function updateOperation({ localDb, operationId, status, txHash, error }: UpdateOperationOptions) {
   await localDb
     .update(localSchema.operations)
     .set({
       status,
-      result,
+      txHash,
       error: error ?? null,
       updatedAt: Date.now(),
     })

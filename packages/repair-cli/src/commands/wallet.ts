@@ -1,9 +1,11 @@
 /** biome-ignore-all lint/suspicious/noConsole: cli */
+import * as p from '@clack/prompts'
 import { calibration } from '@filoz/synapse-core/chains'
 import * as ERC20 from '@filoz/synapse-core/erc20'
 import * as Pay from '@filoz/synapse-core/pay'
 import { claimTokens, formatBalance, formatFraction, parseUnits } from '@filoz/synapse-core/utils'
 import { Cli, z } from 'incur'
+import { isAddress } from 'viem'
 import { getBalance, waitForTransactionReceipt } from 'viem/actions'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
 import { globalOptions, hashLink } from '../utils.ts'
@@ -17,8 +19,9 @@ wallet.command('fund', {
   description: 'Fund a calibration wallet from a faucet',
   options: globalOptions,
   middleware: [contextMiddleware],
-  async *run(c) {
-    const { client, chain } = c.var
+  outputPolicy: 'agent-only',
+  run: async (c) => {
+    const { client, chain, isInteractive } = c.var
 
     if (chain.id !== calibration.id) {
       return c.error({
@@ -27,28 +30,41 @@ wallet.command('fund', {
       })
     }
 
-    yield 'Funding wallet...'
+    const spinner = p.spinner()
     try {
+      if (isInteractive) {
+        spinner.start('Funding wallet...')
+      }
       const hashes = await claimTokens({ address: client.account.address })
 
-      yield `Waiting for tx ${hashLink(hashes[0].tx_hash, chain)} to be mined...`
+      if (isInteractive) {
+        spinner.message(`Waiting for tx ${hashLink(hashes[0].tx_hash, chain)} to be mined...`)
+      }
       await waitForTransactionReceipt(client, {
         hash: hashes[0].tx_hash,
       })
       const balance = await getBalance(client, {
         address: client.account.address,
       })
-      yield {
+      if (isInteractive) {
+        spinner.stop('Wallet funded successfully.')
+      }
+      return c.ok({
         address: client.account.address,
         balance: formatBalance({ value: balance }),
-      }
+        transactionHash: hashes[0].tx_hash,
+      })
     } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to fund wallet'
+      if (isInteractive) {
+        spinner.error(msg)
+      }
       if (c.options.debug) {
         console.error(error)
       }
       return c.error({
         code: 'FAILED_TO_FUND_WALLET',
-        message: 'Failed to fund wallet',
+        message: msg,
       })
     }
   },
@@ -56,23 +72,26 @@ wallet.command('fund', {
 
 wallet.command('balance', {
   description: 'Get wallet and pay account summary',
-  options: globalOptions,
+  options: globalOptions.extend({
+    address: z.string().refine(isAddress, 'Invalid address').optional().describe('Address to get balance for'),
+  }),
   middleware: [contextMiddleware],
   async run(c) {
     const { client } = c.var
+    const address = c.options.address ?? client.account.address
     const balanceFIL = await getBalance(client, {
-      address: client.account.address,
+      address,
     })
 
     const balanceUSDFC = await ERC20.balance(client, {
-      address: client.account.address,
+      address,
     })
 
     const summary = await Pay.getAccountSummary(client, {
-      address: client.account.address,
+      address,
     })
     return {
-      address: client.account.address,
+      address,
       fil: formatBalance({ value: balanceFIL }),
       usdfc: formatBalance({ value: balanceUSDFC.value }),
       pay: {
@@ -99,27 +118,42 @@ wallet.command('deposit', {
   }),
   options: globalOptions,
   middleware: [contextMiddleware],
-  async *run(c) {
-    const { client, chain } = c.var
+  outputPolicy: 'agent-only',
+  run: async (c) => {
+    const { client, chain, isInteractive } = c.var
+    const spinner = p.spinner()
 
     try {
-      yield `Depositing ${c.args.amount} tokens to wallet...`
+      if (isInteractive) {
+        spinner.start(`Depositing ${c.args.amount} USDFC to pay account...`)
+      }
       const hash = await Pay.depositAndApprove(client, {
         amount: parseUnits(c.args.amount),
       })
-      yield `Waiting for tx ${hashLink(hash, chain)} to be mined...`
+      if (isInteractive) {
+        spinner.message(`Waiting for tx ${hashLink(hash, chain)} to be mined...`)
+      }
       await waitForTransactionReceipt(client, {
         hash,
       })
-      yield `Deposit successful`
-      return
+      if (isInteractive) {
+        spinner.stop('Deposit successful.')
+      }
+      return c.ok({
+        amount: c.args.amount,
+        transactionHash: hash,
+      })
     } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to deposit'
+      if (isInteractive) {
+        spinner.error(msg)
+      }
       if (c.options.debug) {
         console.error(error)
       }
       return c.error({
         code: 'FAILED_TO_DEPOSIT',
-        message: (error as Error).message,
+        message: msg,
       })
     }
   },
@@ -132,27 +166,42 @@ wallet.command('withdraw', {
   }),
   options: globalOptions,
   middleware: [contextMiddleware],
-  async *run(c) {
-    const { client, chain } = c.var
+  outputPolicy: 'agent-only',
+  run: async (c) => {
+    const { client, chain, isInteractive } = c.var
+    const spinner = p.spinner()
 
     try {
-      yield `Withdrawing ${c.args.amount} USDFC from pay account...`
+      if (isInteractive) {
+        spinner.start(`Withdrawing ${c.args.amount} USDFC from pay account...`)
+      }
       const hash = await Pay.withdraw(client, {
         amount: parseUnits(c.args.amount),
       })
-      yield `Waiting for tx ${hashLink(hash, chain)} to be mined...`
+      if (isInteractive) {
+        spinner.message(`Waiting for tx ${hashLink(hash, chain)} to be mined...`)
+      }
       await waitForTransactionReceipt(client, {
         hash,
       })
-      yield `Withdrawal successful`
-      return
+      if (isInteractive) {
+        spinner.stop('Withdrawal successful.')
+      }
+      return c.ok({
+        amount: c.args.amount,
+        transactionHash: hash,
+      })
     } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to withdraw'
+      if (isInteractive) {
+        spinner.error(msg)
+      }
       if (c.options.debug) {
         console.error(error)
       }
       return c.error({
         code: 'FAILED_TO_WITHDRAW',
-        message: (error as Error).message,
+        message: msg,
       })
     }
   },

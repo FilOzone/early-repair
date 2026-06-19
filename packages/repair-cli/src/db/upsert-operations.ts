@@ -18,6 +18,6 @@ export async function upsertOperations({ localDb, operations }: UpsertOperations
     .values(operations.map((operation) => ({ ...operation, updatedAt: now })))
     .onConflictDoUpdate({
       target: localDb._.fullSchema.operations.id,
-      set: buildConflictUpdateColumns(localSchema.operations, ['status', 'error', 'updatedAt', 'result']),
+      set: buildConflictUpdateColumns(localSchema.operations, ['status', 'error', 'updatedAt', 'txHash']),
     })
 }

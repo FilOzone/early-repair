@@ -9,7 +9,7 @@ import { repairUpdate } from '../db/repair-update.ts'
 import { upsertOperations } from '../db/upsert-operations.ts'
 import type { OperationSelect, RepairSelect } from '../local-schema.ts'
 import type { IndexerDatabase, LocalDatabase, WalletClient } from '../types.ts'
-import { excludeOperationsByCid, hashLink, operationsToPullPieces } from '../utils.ts'
+import { completeConfirmedOperations, excludeOperationsByCid, hashLink, operationsToPullPieces } from '../utils.ts'
 
 export type RunPullPiecesPhaseOptions = {
   localDb: LocalDatabase
@@ -58,6 +58,15 @@ function createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log 
       if (isRepair) {
         operations = await dedupeCids({ indexerDb, localDb, dataSetId: dataset.dataSetId, operations })
       }
+      // A previous run may have submitted a transaction and crashed before marking rows completed.
+      const operationsBeforeConfirmationCheck = operations.length
+      operations = await completeConfirmedOperations({ localDb, client, operations })
+      const confirmedOperations = operationsBeforeConfirmationCheck - operations.length
+      if (confirmedOperations > 0) {
+        state.completedOperations += confirmedOperations
+        completedOps += confirmedOperations
+      }
+
       group.message(`Pulling ${operations.length} pieces...`)
       // pull pieces
       if (operations.length > 0) {
@@ -105,9 +114,16 @@ function createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log 
             metadata: isRepair ? undefined : operation.metadata,
           })),
         })
+        await upsertOperations({
+          localDb,
+          operations: operations.map((operation) => ({
+            ...operation,
+            txHash: addPiecesResult.txHash,
+          })),
+        })
 
         group.message(`Waiting for add pieces ${hashLink(addPiecesResult.txHash, client.chain)}...`)
-        const addPiecesResult2 = await SP.waitForAddPieces(addPiecesResult)
+        const waitForAddPieces = await SP.waitForAddPieces(addPiecesResult)
         state.completedOperations += operations.length
         completedOps += operations.length
         await upsertOperations({
@@ -116,7 +132,7 @@ function createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log 
             ...operation,
             status: 'completed',
             error: null,
-            result: { dataSetId: addPiecesResult2.dataSetId, txHash: addPiecesResult2.txHash },
+            txHash: waitForAddPieces.txHash,
           })),
         })
       }

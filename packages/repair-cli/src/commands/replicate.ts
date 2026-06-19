@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm'
 import { Cli, z } from 'incur'
+import { isAddress } from 'viem'
 import { repairDelete } from '../db/repair-delete.ts'
 import { replicateCreate } from '../db/replicate-create.ts'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
@@ -136,11 +137,13 @@ replicate.command('run', {
   options: globalOptions.extend({
     concurrency: z.coerce.number().min(1).max(10).default(4).describe('Concurrency level'),
     batchSize: z.coerce.number().min(1).max(40).default(40).describe('Max pieces per batch'),
+    payer: z.string().refine(isAddress, 'Invalid address').optional().describe('Payer address'),
   }),
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
       const schema = c.var.localDb._.fullSchema
+      const payer = c.options.payer ?? c.var.client.account.address
       const repair = await c.var.localDb.query.repairs.findFirst({
         where: and(
           eq(schema.repairs.id, c.args.replicateId),
@@ -159,6 +162,7 @@ replicate.command('run', {
       await ensureReplicateDataset({
         ...c.var,
         repair,
+        payer,
         source: c.var.source,
       })
 

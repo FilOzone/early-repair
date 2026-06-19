@@ -1,8 +1,7 @@
-import type { MetadataObject } from '@filoz/synapse-core'
 import { type Chain, getChain } from '@filoz/synapse-core/chains'
 import * as Piece from '@filoz/synapse-core/piece'
 import type * as SP from '@filoz/synapse-core/sp'
-import { getTableColumns, type SQL, sql } from 'drizzle-orm'
+import { getTableColumns, inArray, type SQL, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/libsql'
 import type { PgTable } from 'drizzle-orm/pg-core'
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core'
@@ -11,12 +10,13 @@ import { Conf } from 'iso-conf'
 import { request } from 'iso-web/http'
 import pLocate from 'p-locate'
 import terminalLink from 'terminal-link'
-import { createWalletClient, type Hex, http } from 'viem'
+import { createWalletClient, type Hash, type Hex, http, TransactionReceiptNotFoundError } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
+import { getTransactionReceipt } from 'viem/actions'
 import packageJson from '../package.json' with { type: 'json' }
 import type { OperationSelect } from './local-schema.ts'
 import * as schema from './local-schema.ts'
-import type { LocalDatabase } from './types.ts'
+import type { LocalDatabase, WalletClient } from './types.ts'
 
 export const configSchema = z.object({
   privateKey: z.string().optional(),
@@ -118,13 +118,27 @@ export async function migrateLocalDatabase(db: LocalDatabase) {
       cid text NOT NULL,
       metadata text NOT NULL,
       alternate_provider text NOT NULL,
-      result text,
+      tx_hash text,
       error text,
       created_at integer NOT NULL,
       updated_at integer NOT NULL,
       FOREIGN KEY (repair_id) REFERENCES repairs(id)
     )
   `)
+  try {
+    await db.$client.execute(`
+      ALTER TABLE operations ADD COLUMN tx_hash text
+    `)
+  } catch {
+    // Column already exists on databases created with the updated schema.
+  }
+  try {
+    await db.$client.execute(`
+      ALTER TABLE operations DROP COLUMN result
+    `)
+  } catch {
+    // Column does not exist on databases created with the updated schema.
+  }
 }
 
 /**
@@ -137,6 +151,62 @@ export async function migrateLocalDatabase(db: LocalDatabase) {
 export function hashLink(hash: string, chain: Chain) {
   const link = terminalLink(hash, `${chain.blockExplorers?.default?.url}/tx/${hash}`)
   return link
+}
+
+/**
+ * Mark operations with successful mined transactions as completed.
+ *
+ * @returns Operations that are not completed yet.
+ */
+export async function completeConfirmedOperations({
+  localDb,
+  client,
+  operations,
+}: {
+  localDb: LocalDatabase
+  client: WalletClient
+  operations: OperationSelect[]
+}): Promise<OperationSelect[]> {
+  const hashes = new Set(
+    operations.map((operation) => operation.txHash).filter((txHash): txHash is Hash => txHash != null)
+  )
+  const completedHashes = new Set<Hash>()
+
+  for (const hash of hashes) {
+    try {
+      const receipt = await getTransactionReceipt(client, { hash })
+      if (receipt.status === 'success') {
+        completedHashes.add(hash)
+      }
+    } catch (error) {
+      if (!(error instanceof TransactionReceiptNotFoundError)) {
+        throw error
+      }
+    }
+  }
+
+  const completedOperations = operations.filter(
+    (operation) => operation.txHash != null && completedHashes.has(operation.txHash as Hash)
+  )
+
+  if (completedOperations.length > 0) {
+    await localDb
+      .update(schema.operations)
+      .set({
+        status: 'completed',
+        error: null,
+        updatedAt: Date.now(),
+      })
+      .where(
+        inArray(
+          schema.operations.id,
+          completedOperations.map((operation) => operation.id)
+        )
+      )
+  }
+  const completedOperationIds = new Set(completedOperations.map((operation) => operation.id))
+
+  return operations.filter((operation) => operation.status !== 'completed' && !completedOperationIds.has(operation.id))
 }
 
 /**

@@ -73,10 +73,11 @@ This command only works on Calibration. It claims faucet tokens, waits for the t
 
 ### `repair wallet balance`
 
-Shows wallet and payment account balances.
+Shows wallet and payment account balances for the configured wallet, or for a provided address.
 
 ```bash
 repair wallet balance
+repair wallet balance --address 0x1234567890123456789012345678901234567890
 ```
 
 The output includes the wallet address, FIL balance, USDFC balance, and Filecoin Pay account summary fields such as funds, available funds, debt, lockup rates, lockup totals, runway, and current epoch.
@@ -89,7 +90,7 @@ Deposits USDFC from the configured wallet into the wallet's Filecoin Pay account
 repair wallet deposit 100
 ```
 
-`amount` is a positive USDFC amount. The command submits the deposit and approval transaction, then waits for it to be mined.
+`amount` is a positive USDFC amount. The command submits the deposit and approval transaction, waits for it to be mined, and returns the amount and transaction hash when structured output is requested.
 
 ### `repair wallet withdraw <amount>`
 
@@ -99,7 +100,39 @@ Withdraws USDFC from the wallet's Filecoin Pay account.
 repair wallet withdraw 25
 ```
 
-`amount` is a positive USDFC amount. The command submits the withdraw transaction and waits for it to be mined.
+`amount` is a positive USDFC amount. The command submits the withdraw transaction, waits for it to be mined, and returns the amount and transaction hash when structured output is requested.
+
+### `repair session-key approve <address>`
+
+Approves a session key for storage operations using the configured wallet.
+
+```bash
+repair session-key approve 0x1234567890123456789012345678901234567890
+```
+
+By default, the session key is approved for 100 days. Use `--expires-in-days` to choose a different duration, and `--origin` to override the origin string recorded on-chain.
+
+```bash
+repair session-key approve 0x1234567890123456789012345678901234567890 --expires-in-days 30 --origin early-repair
+```
+
+The command waits for the approval transaction to be mined and returns the session key address, expiry timestamp, and transaction hash when structured output is requested.
+
+### `repair session-key revoke <address>`
+
+Revokes a session key for storage operations using the configured wallet.
+
+```bash
+repair session-key revoke 0x1234567890123456789012345678901234567890
+```
+
+Use `--origin` to override the origin string recorded on-chain.
+
+```bash
+repair session-key revoke 0x1234567890123456789012345678901234567890 --origin early-repair
+```
+
+The command waits for the revoke transaction to be mined and returns the session key address and transaction hash when structured output is requested.
 
 ### `repair providers list`
 
@@ -208,11 +241,13 @@ Options:
 
 - `--concurrency <number>` controls how many pull batches run at once. Defaults to `4`.
 - `--batch-size <number>` controls the maximum number of `add_piece` operations per batch. Defaults to `40`.
+- `--payer <address>` overrides the payer address used when creating or finding the target repair dataset. Defaults to the configured wallet address.
 
 Example:
 
 ```bash
 repair repair run 1 --concurrency 8 --batch-size 40
+repair repair run 1 --payer 0x1234567890123456789012345678901234567890
 ```
 
 ### `repair repair delete <repairId>`
@@ -270,11 +305,13 @@ Options:
 
 - `--concurrency <number>` controls how many pull batches run at once. Defaults to `4`.
 - `--batch-size <number>` controls the maximum number of `add_piece` operations per batch. Defaults to `40`.
+- `--payer <address>` overrides the payer address used when creating the target replication dataset. Defaults to the configured wallet address.
 
 Example:
 
 ```bash
 repair replicate run 1 --concurrency 8 --batch-size 40
+repair replicate run 1 --payer 0x1234567890123456789012345678901234567890
 ```
 
 ### `repair replicate delete <replicateId>`

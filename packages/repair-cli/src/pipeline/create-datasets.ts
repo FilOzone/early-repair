@@ -2,6 +2,7 @@ import * as p from '@clack/prompts'
 import * as SP from '@filoz/synapse-core/sp'
 import { getPDPProvider } from '@filoz/synapse-core/sp-registry'
 import { eq } from 'drizzle-orm'
+import type { Address } from 'viem'
 import { findRepairDataset } from '../db/find-repair-dataset.ts'
 import { repairUpdate } from '../db/repair-update.ts'
 import type { RepairSelect } from '../local-schema.ts'
@@ -14,6 +15,7 @@ export type EnsureRepairDatasetOptions = {
   indexerDb: IndexerDatabase
   client: WalletClient
   repair: RepairSelect
+  payer: Address
 }
 
 /**
@@ -21,7 +23,14 @@ export type EnsureRepairDatasetOptions = {
  *
  * @param options - The options for ensuring the repair dataset.
  */
-export async function ensureRepairDataset({ source, localDb, indexerDb, client, repair }: EnsureRepairDatasetOptions) {
+export async function ensureRepairDataset({
+  source,
+  localDb,
+  indexerDb,
+  client,
+  repair,
+  payer,
+}: EnsureRepairDatasetOptions) {
   const log = p.taskLog({
     title: 'Ensuring repair dataset',
   })
@@ -36,7 +45,7 @@ export async function ensureRepairDataset({ source, localDb, indexerDb, client, 
   const existingDatasetId = await findRepairDataset({
     indexerDb,
     providerId: repair.targetProviderId,
-    payer: client.account.address,
+    payer,
     source,
   })
 
@@ -47,7 +56,7 @@ export async function ensureRepairDataset({ source, localDb, indexerDb, client, 
     const { txHash, statusUrl } = await SP.createDataSet(client, {
       payee: provider.payee,
       serviceURL: provider.pdp.serviceURL,
-      payer: client.account.address,
+      payer,
       cdn: false,
       metadata: {
         source,
@@ -74,7 +83,13 @@ export async function ensureRepairDataset({ source, localDb, indexerDb, client, 
  *
  * @param options - The options for ensuring the replication dataset.
  */
-export async function ensureReplicateDataset({ localDb, indexerDb, client, repair }: EnsureRepairDatasetOptions) {
+export async function ensureReplicateDataset({
+  localDb,
+  indexerDb,
+  client,
+  repair,
+  payer,
+}: EnsureRepairDatasetOptions) {
   const log = p.taskLog({
     title: 'Ensuring replication dataset',
   })
@@ -110,7 +125,7 @@ export async function ensureReplicateDataset({ localDb, indexerDb, client, repai
   const { txHash, statusUrl } = await SP.createDataSet(client, {
     payee: provider.payee,
     serviceURL: provider.pdp.serviceURL,
-    payer: client.account.address,
+    payer,
     cdn: sourceDataSet.withCdn,
     metadata: sourceDataSet.metadata ?? undefined,
   })

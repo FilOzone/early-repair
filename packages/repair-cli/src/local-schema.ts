@@ -1,5 +1,4 @@
 import type { MetadataObject } from '@filoz/synapse-core'
-import type * as SP from '@filoz/synapse-core/sp'
 import { relations } from 'drizzle-orm'
 import type { AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 import * as t from 'drizzle-orm/sqlite-core'
@@ -9,11 +8,6 @@ import * as Json from 'iso-base/json'
 export type RepairStatus = 'pending' | 'completed' | 'failed'
 export type OperationStatus = 'pending' | 'completed' | 'failed' | 'skipped'
 export type OperationType = 'create_dataset' | 'add_piece'
-
-export type OperationResult = Omit<
-  SP.AddPiecesSuccess,
-  'txStatus' | 'addMessageOk' | 'piecesAdded' | 'pieceCount' | 'confirmedPieceIds'
->
 
 /**
  * Custom type for JSON
@@ -74,7 +68,7 @@ export const operations = table('operations', {
   cid: t.text().notNull(),
   metadata: jsonType().$type<MetadataObject>().notNull(),
   alternateProvider: t.text('alternate_provider').notNull(),
-  result: jsonType().$type<OperationResult>(),
+  txHash: t.text('tx_hash'),
   error: t.text(),
   createdAt: t.integer('created_at').notNull(),
   updatedAt: t.integer('updated_at').notNull(),

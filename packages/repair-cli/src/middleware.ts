@@ -13,6 +13,7 @@ export const contextSchema = z.object({
   client: z.custom<Client<Transport, Chain, Account>>(),
   chain: z.custom<Chain>(),
   source: z.string(),
+  isInteractive: z.boolean(),
 })
 
 export const contextMiddleware = middleware<typeof contextSchema>(async (c, next) => {
@@ -38,6 +39,7 @@ export const contextMiddleware = middleware<typeof contextSchema>(async (c, next
   c.set('client', client)
   c.set('chain', chain)
   c.set('source', source)
+  c.set('isInteractive', !c.agent && !c.formatExplicit)
   await next()
 
   localDb.$client.close()

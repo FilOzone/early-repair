@@ -3,8 +3,10 @@ import * as SP from '@filoz/synapse-core/sp'
 import { getPdpDataSet } from '@filoz/synapse-core/warm-storage'
 import { and, asc, eq } from 'drizzle-orm'
 import { Cli, z } from 'incur'
+import { isAddress } from 'viem'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
 import { globalOptions, hashLink } from '../utils.ts'
+
 export const datasets = Cli.create('datasets', {
   description: 'Dataset commands',
   options: globalOptions,
@@ -15,15 +17,15 @@ datasets.command('list', {
   description: 'List all datasets owned by the repair wallet',
   options: globalOptions.extend({
     providerId: z.coerce.bigint().optional().describe('Filter datasets by provider ID'),
+    payer: z.string().refine(isAddress, 'Invalid address').optional().describe('Filter datasets by payer address'),
   }),
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
       const schema = c.var.indexerDb._.fullSchema
-      const conditions = [
-        eq(schema.dataSets.deleted, false),
-        eq(schema.dataSets.payer, c.var.client.account.address.toLowerCase()),
-      ]
+      const payer = c.options.payer?.toLowerCase() ?? c.var.client.account.address.toLowerCase()
+      const conditions = [eq(schema.dataSets.deleted, false), eq(schema.dataSets.payer, payer)]
+
       if (c.options.providerId != null) {
         conditions.push(eq(schema.dataSets.providerId, c.options.providerId))
       }
@@ -76,7 +78,7 @@ datasets.command('terminate', {
   middleware: [contextMiddleware],
   outputPolicy: 'agent-only',
   run: async (c) => {
-    const isInteractive = !c.agent && !c.formatExplicit
+    const { isInteractive } = c.var
     const spinner = p.spinner()
     try {
       if (isInteractive) {
