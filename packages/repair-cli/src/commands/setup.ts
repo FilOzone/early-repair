@@ -22,9 +22,7 @@ function validatePostgresUrl(value: string) {
 
 export const setup = Cli.create('setup', {
   description: 'Setup the CLI',
-  options: globalOptions.extend({
-    privateKey: z.string().optional().describe('Private key to use'),
-  }),
+  options: globalOptions,
   run: async (c) => {
     try {
       // Private key
@@ -32,7 +30,7 @@ export const setup = Cli.create('setup', {
         message: 'Enter your private key',
         validate(value) {
           if (!value || !/^0x[a-fA-F0-9]{64}$/.test(value)) {
-            return `Invalid private key!`
+            return `Invalid private key! (must be 64 hex characters) starting with 0x`
           }
         },
         initialValue: config.get('privateKey'),

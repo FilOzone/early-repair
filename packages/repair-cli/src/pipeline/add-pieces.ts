@@ -47,6 +47,7 @@ function createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log 
     let completedOps = 0
     let failedOps = 0
     let operations: OperationSelect[] = options.operations
+    const isRepair = repair.repairDataSetId == null
 
     const group = log.group(`Batch ${options.batchNumber}/${state.totalBatches}`)
 
@@ -54,7 +55,7 @@ function createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log 
       const dataset = await getTargetDataset({ localDb, repairId: repair.id, client })
 
       // dedupe operations by CID on the target dataset for repairs jobs
-      if (repair.repairDataSetId == null) {
+      if (isRepair) {
         operations = await dedupeCids({ indexerDb, localDb, dataSetId: dataset.dataSetId, operations })
       }
       group.message(`Pulling ${operations.length} pieces...`)
@@ -101,7 +102,7 @@ function createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log 
           clientDataSetId: dataset.clientDataSetId,
           pieces: operations.map((operation) => ({
             pieceCid: Piece.from(operation.cid),
-            metadata: operation.metadata,
+            metadata: isRepair ? undefined : operation.metadata,
           })),
         })
 
