@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.2.1...repair-cli-v0.3.0) (2026-06-19)
+
+
+### Features
+
+* enhance repair CLI with session key management and improve wallet commands ([a1c687a](https://github.com/FilOzone/early-repair/commit/a1c687a7920d2fef3d7e7f87b33066a213270bb5))
+
 ## [0.2.1](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.2.0...repair-cli-v0.2.1) (2026-06-19)
 
 
