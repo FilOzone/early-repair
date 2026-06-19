@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.2.0...repair-cli-v0.2.1) (2026-06-19)
+
+
+### Bug Fixes
+
+* improve setup command and ignore metadata on repairs ([a086263](https://github.com/FilOzone/early-repair/commit/a086263a08da6192175475dc3ebc06ceec7aff90))
+
 ## [0.2.0](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.1.2...repair-cli-v0.2.0) (2026-06-18)
 
 
