@@ -34,7 +34,7 @@ jobs:
     name: build ponder image
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set image name
         run: echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}-ponder" >> "$GITHUB_ENV"
