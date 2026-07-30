@@ -33,5 +33,5 @@
     "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
   },
   "markdown.validate.enabled": false,
-  "typescript.tsdk": "node_modules/typescript/lib"
+  "js/ts.tsdk.path": "node_modules/typescript/lib"
 }
