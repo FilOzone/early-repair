@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.3.0...repair-cli-v0.4.0) (2026-07-30)
+
+
+### Features
+
+* second copy ([#52](https://github.com/FilOzone/early-repair/issues/52)) ([b010be1](https://github.com/FilOzone/early-repair/commit/b010be123b84ba377ca8c09feeb892395a0c65f8))
+
 ## [0.3.0](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.2.1...repair-cli-v0.3.0) (2026-06-19)
 
 
