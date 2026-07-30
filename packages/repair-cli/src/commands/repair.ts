@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { Cli, z } from 'incur'
 import { isAddress } from 'viem'
 import { repairCreate } from '../db/repair-create.ts'
@@ -52,7 +52,7 @@ repair.command('list', {
     try {
       const localSchema = c.var.localDb._.fullSchema
       const repairs = await c.var.localDb.query.repairs.findMany({
-        where: isNull(localSchema.repairs.repairDataSetId),
+        where: eq(localSchema.repairs.kind, 'repair'),
         orderBy: [desc(localSchema.repairs.createdAt)],
         with: {
           operations: true,
@@ -147,7 +147,7 @@ repair.command('run', {
         where: and(
           eq(schema.repairs.id, c.args.repairId),
           inArray(schema.repairs.status, ['pending', 'failed']),
-          isNull(schema.repairs.repairDataSetId)
+          eq(schema.repairs.kind, 'repair')
         ),
       })
       if (!repair) {

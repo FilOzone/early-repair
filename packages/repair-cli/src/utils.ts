@@ -81,6 +81,7 @@ export async function createLocalDatabase(dbPath: string): Promise<LocalDatabase
   }) as LocalDatabase
 
   await localDb.$client.execute('PRAGMA journal_mode = WAL')
+  await migrateLocalDatabase(localDb)
 
   return localDb
 }
@@ -109,6 +110,25 @@ export async function migrateLocalDatabase(db: LocalDatabase) {
   } catch {
     // Column already exists on databases created with the updated schema.
   }
+  try {
+    await db.$client.execute(`
+      ALTER TABLE repairs ADD COLUMN kind text NOT NULL DEFAULT 'repair'
+    `)
+  } catch {
+    // Column already exists on databases created with the updated schema.
+  }
+  try {
+    await db.$client.execute(`
+      ALTER TABLE repairs ADD COLUMN source_provider_url text
+    `)
+  } catch {
+    // Column already exists on databases created with the updated schema.
+  }
+  await db.$client.execute(`
+    UPDATE repairs
+    SET kind = 'replicate'
+    WHERE repair_data_set_id IS NOT NULL AND (kind IS NULL OR kind = 'repair')
+  `)
   await db.$client.execute(`
     CREATE TABLE IF NOT EXISTS operations (
       id integer PRIMARY KEY AUTOINCREMENT NOT NULL,

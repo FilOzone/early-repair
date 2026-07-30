@@ -75,7 +75,7 @@ function createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log 
           dataSetId: dataset.dataSetId,
           clientDataSetId: dataset.clientDataSetId,
           pieces: operationsToPullPieces(operations),
-          timeout: 1000 * 60 * 30,
+          timeout: 1000 * 60 * 30, // 30 minutes
           onStatus: (status) => {
             const completed = status.pieces.filter((piece) => piece.status === 'complete').length
             const failed = status.pieces.filter((piece) => piece.status === 'failed').length
