@@ -69,8 +69,10 @@ export async function replicateCreate(options: ReplicateCreateOptions): Promise<
   const [repair] = await localDb
     .insert(localSchema.repairs)
     .values({
+      kind: 'replicate',
       repairProviderId: sourceProvider.providerId,
       repairDataSetId: sourceDataSet.dataSetId,
+      sourceProviderUrl: sourceProvider.serviceUrl,
       targetProviderId: targetProvider.providerId,
       targetProviderUrl: targetProvider.serviceUrl,
       targetDataSetId: null,

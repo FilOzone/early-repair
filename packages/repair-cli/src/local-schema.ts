@@ -6,6 +6,7 @@ import { customType, sqliteTable as table } from 'drizzle-orm/sqlite-core'
 import * as Json from 'iso-base/json'
 
 export type RepairStatus = 'pending' | 'completed' | 'failed'
+export type RepairKind = 'repair' | 'replicate' | 'second_copy'
 export type OperationStatus = 'pending' | 'completed' | 'failed' | 'skipped'
 export type OperationType = 'create_dataset' | 'add_piece'
 
@@ -44,8 +45,10 @@ export type RepairUpdate = Partial<RepairInsert>
 export const repairs = table('repairs', {
   id: t.int().primaryKey({ autoIncrement: true }),
   status: t.text().$type<RepairStatus>().notNull().default('pending'),
+  kind: t.text().$type<RepairKind>().notNull().default('repair'),
   repairProviderId: bigintType('repair_provider_id').notNull(),
   repairDataSetId: bigintType('repair_data_set_id'),
+  sourceProviderUrl: t.text('source_provider_url'),
   targetProviderId: bigintType('target_provider_id').notNull(),
   targetProviderUrl: t.text('target_provider_url').notNull(),
   targetDataSetId: bigintType('target_data_set_id'),

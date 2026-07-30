@@ -46,8 +46,10 @@ export async function repairCreate(options: RepairCreateOptions): Promise<number
   const [repair] = await localDb
     .insert(localSchema.repairs)
     .values({
+      kind: 'repair',
       repairProviderId,
       repairDataSetId: null,
+      sourceProviderUrl: null,
       targetProviderId: targetProvider.providerId,
       targetProviderUrl: targetProvider.serviceUrl,
       targetDataSetId: null,

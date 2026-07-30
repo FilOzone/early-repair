@@ -225,7 +225,7 @@ Each repair includes:
 - block number used when the repair was created
 - total operations and counts by `pending`, `failed`, `completed`, and `skipped`
 
-This command lists provider-level repairs only. Dataset replications are listed with `repair replicate list`.
+This command lists provider-level repairs only. Dataset replications are listed with `repair replicate list`. Second-copy jobs are listed with `repair second-copy list`.
 
 ### `repair repair run <repairId>`
 
@@ -324,6 +324,75 @@ repair replicate delete 1
 
 This only deletes local SQLite state. It does not delete on-chain datasets or remove pieces from a provider.
 
+### `repair second-copy create`
+
+Creates a local second-copy job from a pieces JSON file and an explicit source provider URL.
+
+```bash
+repair second-copy create \
+  --pieces-file ./secondary-copy-pieces.json \
+  --source-provider-url https://mainnet-sp.example/pdp \
+  --target-provider-id 202
+```
+
+`--pieces-file` is a JSON file with an `aggregates` array. Each aggregate must include a `piece_cid` string. Only aggregate `piece_cid` values are used; `sub_pieces` are ignored.
+
+`--source-provider-url` is the provider URL pieces are pulled from. It is not looked up in the indexer, so it can point at a provider on another network (for example Mainnet while the CLI is configured for Calibration).
+
+`--target-provider-id` is the provider on the configured chain that should receive the copied pieces. Its service URL must differ from `--source-provider-url`.
+
+The command snapshots the current chain block number, creates a local second-copy row, and creates local `add_piece` operations for every unique `piece_cid` in the file. The command returns a `secondCopyId`.
+
+### `repair second-copy list`
+
+Lists local second-copy jobs.
+
+```bash
+repair second-copy list
+```
+
+Each job includes:
+
+- second-copy ID and status
+- source provider URL
+- target provider ID and target provider URL
+- target dataset ID, when one has been created or found
+- block number used when the job was created
+- total operations and counts by `pending`, `failed`, `completed`, and `skipped`
+
+### `repair second-copy run <secondCopyId>`
+
+Runs a pending second-copy job.
+
+```bash
+repair second-copy run 1
+```
+
+The command first ensures the target dataset exists for the configured wallet and target provider (same as repair: IPFS indexing enabled, CDN disabled). Then it processes pending `add_piece` operations by pulling pieces from `--source-provider-url` into the target provider and committing them on-chain.
+
+Options:
+
+- `--concurrency <number>` controls how many pull batches run at once. Defaults to `4`.
+- `--batch-size <number>` controls the maximum number of `add_piece` operations per batch. Defaults to `40`.
+- `--payer <address>` overrides the payer address used when creating or finding the target dataset. Defaults to the configured wallet address.
+
+Example:
+
+```bash
+repair second-copy run 1 --concurrency 8 --batch-size 40
+repair second-copy run 1 --payer 0x1234567890123456789012345678901234567890
+```
+
+### `repair second-copy delete <secondCopyId>`
+
+Deletes a local second-copy job and its operations.
+
+```bash
+repair second-copy delete 1
+```
+
+This only deletes local SQLite state. It does not delete on-chain datasets or remove pieces from a provider.
+
 ## Typical Workflow
 
 1. Configure the CLI.
@@ -376,6 +445,19 @@ repair datasets show 42
 repair replicate create --data-set-id 42 --target-provider-id 202
 repair replicate list
 repair replicate run 1
+```
+
+### Second-copy from a pieces file
+
+Use second-copy when you have a list of piece CIDs to pull from an explicit provider URL into a target provider on the configured chain. This supports cross-network pulls, such as Mainnet source URL → Calibration target provider.
+
+```bash
+repair second-copy create \
+  --pieces-file ./secondary-copy-pieces.json \
+  --source-provider-url https://mainnet-sp.example/pdp \
+  --target-provider-id 202
+repair second-copy list
+repair second-copy run 1
 ```
 
 ## Contributing
