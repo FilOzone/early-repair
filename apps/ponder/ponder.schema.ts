@@ -1,4 +1,4 @@
-import { tableNames } from '@filoz/repair-db'
+import { type JsonRecord, tableNames } from '@filoz/repair-db'
 import { index, onchainTable, primaryKey } from 'ponder'
 
 export const providers = onchainTable(
@@ -27,7 +27,7 @@ export const dataSets = onchainTable(
     providerId: t.int8({ mode: 'bigint' }).notNull(),
     payer: t.text().notNull(),
     source: t.text(),
-    metadata: t.jsonb(),
+    metadata: t.jsonb().$type<JsonRecord | null>(),
     withCdn: t.boolean().notNull(),
     withIpfsIndexing: t.boolean().notNull(),
     pdpEndEpoch: t.int8({ mode: 'bigint' }),
@@ -47,7 +47,7 @@ export const pieces = onchainTable(
     pieceId: t.int8({ mode: 'bigint' }).notNull(),
     cid: t.text().notNull(),
     rawSize: t.int8({ mode: 'bigint' }).notNull(),
-    metadata: t.jsonb(),
+    metadata: t.jsonb().$type<JsonRecord | null>(),
     removed: t.boolean().notNull(),
     addedAtBlock: t.int8({ mode: 'bigint' }).notNull(),
     removedAtBlock: t.int8({ mode: 'bigint' }),

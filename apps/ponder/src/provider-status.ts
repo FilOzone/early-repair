@@ -1,7 +1,7 @@
 import type { Context } from 'ponder:registry'
 import { ponder } from 'ponder:registry'
 import { providers } from 'ponder:schema'
-import { and, eq, inArray, notInArray } from 'drizzle-orm'
+import { and, eq, inArray, notInArray } from 'ponder'
 import { ProviderIdSetAbi } from './abis.ts'
 import { NETWORKS } from './networks.ts'
 
