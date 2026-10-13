@@ -54,7 +54,6 @@ If using an AI tool, you are welcome to load AGENTS.md into your context to teac
 ```text
 - packages/
   - repair-cli/ SDK
-- apps/ Apps using Synapse
 - package.json Root package file
 ````
 

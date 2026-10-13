@@ -6,9 +6,9 @@
 
 - [@filoz/repair-cli](https://github.com/FilOzone/early-repair/tree/main/packages/repair-cli) - Repair CLI
 
-## Apps
+## Indexer
 
-- [ponder](https://github.com/FilOzone/early-repair/tree/main//apps/ponder) - FOC indexer
+The Ponder indexer and its shared schema moved to [FilOzone/indexer](https://github.com/FilOzone/indexer).
 
 ## Contributing
 

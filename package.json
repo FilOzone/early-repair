@@ -11,8 +11,8 @@
     "lint:fix": "biome check --fix .",
     "test": "pnpm -r --filter='./packages/*' --if-present run test",
     "check:repo": "pnpx sherif@latest -r root-package-manager-field",
-    "clean": "rm -rf node_modules pnpm-lock.yaml package-lock.json packages/*/{.wireit,pnpm-lock.yaml,package-lock.json,dist,node_modules} apps/*/{.wireit,pnpm-lock.yaml,package-lock.json,dist,node_modules}",
-    "clean:cache": "rm -rf packages/*/{.wireit,dist} apps/*/{.wireit,dist}"
+    "clean": "rm -rf node_modules pnpm-lock.yaml package-lock.json packages/*/{.wireit,pnpm-lock.yaml,package-lock.json,dist,node_modules}",
+    "clean:cache": "rm -rf packages/*/{.wireit,dist}"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
