@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.4.0...repair-cli-v1.0.0) (2026-10-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* the indexer Postgres URL settings are gone. `providers list` piece counts/sizes and `datasets list` piece counts now require --stats, and `datasets show` returns the API's data set shape (e.g. `owner` instead of `payer`, numbers as strings).
+
+### Features
+
+* read providers, datasets and pieces from the Filecoin API ([#59](https://github.com/FilOzone/early-repair/issues/59)) ([7d08a3a](https://github.com/FilOzone/early-repair/commit/7d08a3a44b09a213f8053e9cca3934a14320bf8b))
+
 ## [0.4.0](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.3.0...repair-cli-v0.4.0) (2026-07-30)
 
 
