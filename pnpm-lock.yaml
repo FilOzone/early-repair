@@ -59,6 +59,9 @@ importers:
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.2.13)(@libsql/client@0.17.3)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(kysely@0.29.2)(pg@8.21.0)
+      fetch-extras:
+        specifier: ^3.2.1
+        version: 3.2.1
       incur:
         specifier: ^0.4.6
         version: 0.4.8
@@ -931,6 +934,10 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fetch-extras@3.2.1:
+    resolution: {integrity: sha512-MuxNR+WUQiu6i4xEDrtoSzSwoqDR2QhN8KU5jlFdAyM3aJmPYwOVC/PwkL5tqyzFMoxz9aGzYyPKRrnSkJQsEA==}
+    engines: {node: '>=22'}
 
   figures@6.1.0:
     resolution: {integrity: sha512-d+l3qxjSesT4V7v2fh+QnmFnUWv9lSpjarhShNTgBOfA0ttejbQUAlHLitbjkoRiDulW0OPoQPYIGhIC8ohejg==}
@@ -2556,6 +2563,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
       picomatch: 4.0.4
+
+  fetch-extras@3.2.1: {}
 
   figures@6.1.0:
     dependencies:

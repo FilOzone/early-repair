@@ -8,6 +8,7 @@ import {
   type Provider,
   unwrap,
 } from '@filecoin-project/api-client'
+import { pipeline, withRateLimit, withRetry, withTimeout } from 'fetch-extras'
 import type { IndexerApi } from './types.ts'
 
 export { ApiError, DEFAULT_API_URL } from '@filecoin-project/api-client'
@@ -19,29 +20,18 @@ export type Network = 'mainnet' | 'calibration'
 /** Largest page size filecoin-api accepts. */
 export const MAX_PAGE_SIZE = 200
 
-/** Retries for rate-limited (`429`) and unavailable (`5xx`) responses. */
-const MAX_RETRIES = 8
+/** Retries for network errors and `408`, `429` and `5xx` responses. */
+const MAX_RETRIES = 5
+
+/** Per-attempt request timeout; a timed-out request fails instead of retrying. */
+const REQUEST_TIMEOUT_MS = 30_000
+
+/** filecoin-api allows 120 requests per minute per client IP. */
+const RATE_LIMIT = { requestsPerInterval: 120, interval: 60_000 }
 
 /** Map a chain ID to its filecoin-api network. */
 export function networkFromChainId(chainId: number): Network {
   return chainId === 314 ? 'mainnet' : 'calibration'
-}
-
-/**
- * `fetch` that retries `429` and `5xx` responses, waiting for `Retry-After` when the API sends it
- * and backing off exponentially otherwise. filecoin-api allows 120 requests per minute per IP.
- */
-async function fetchWithRetry(input: Request): Promise<Response> {
-  for (let attempt = 0; ; attempt++) {
-    const response = await fetch(input.clone())
-    if ((response.status !== 429 && response.status < 500) || attempt >= MAX_RETRIES) {
-      return response
-    }
-    const retryAfter = Number(response.headers.get('retry-after'))
-    const delayMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 500 * 2 ** attempt
-    await response.body?.cancel()
-    await new Promise((resolve) => setTimeout(resolve, delayMs))
-  }
 }
 
 /**
@@ -51,6 +41,14 @@ async function fetchWithRetry(input: Request): Promise<Response> {
  * @param options.chainId - Chain ID used to pick the network.
  */
 export function createIndexerApi({ baseUrl, chainId }: { baseUrl?: string; chainId: number }): IndexerApi {
+  // Pace requests under the API's limit, and still retry 429s (other clients may share the IP),
+  // honouring Retry-After.
+  const fetchWithRetry = pipeline(
+    fetch,
+    withTimeout(REQUEST_TIMEOUT_MS),
+    withRateLimit(RATE_LIMIT),
+    withRetry({ retries: MAX_RETRIES })
+  )
   return {
     client: createApiClient({ baseUrl: baseUrl ?? DEFAULT_API_URL, fetch: fetchWithRetry }),
     network: networkFromChainId(chainId),
