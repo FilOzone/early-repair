@@ -44,6 +44,9 @@ importers:
       '@clack/prompts':
         specifier: ^1.5.1
         version: 1.5.1
+      '@filecoin-project/api-client':
+        specifier: ^0.2.0
+        version: 0.2.0
       '@filoz/synapse-core':
         specifier: ^0.7.0
         version: 0.7.0(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))
@@ -56,6 +59,9 @@ importers:
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.2.13)(@libsql/client@0.17.3)(@opentelemetry/api@1.9.1)(@types/pg@8.20.0)(kysely@0.29.2)(pg@8.21.0)
+      fetch-extras:
+        specifier: ^3.2.1
+        version: 3.2.1
       incur:
         specifier: ^0.4.6
         version: 0.4.8
@@ -80,9 +86,6 @@ importers:
       p-queue:
         specifier: ^9.3.0
         version: 9.3.0
-      pg:
-        specifier: ^8.21.0
-        version: 8.21.0
       terminal-link:
         specifier: ^5.0.0
         version: 5.0.0
@@ -96,9 +99,6 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 25.9.2
-      '@types/pg':
-        specifier: ^8.20.0
-        version: 8.20.0
       playwright-test:
         specifier: ^14.1.12
         version: 14.1.15
@@ -348,6 +348,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@filecoin-project/api-client@0.2.0':
+    resolution: {integrity: sha512-fGH5NYy+mkken7/RYDN0YKb4X2CWXLvG+8R8FxpzaTfUVPR8qxeBXjqhvqAwzrc5mHGxVuXc0ZNKZpWEe/XLaA==}
 
   '@filoz/synapse-core@0.7.0':
     resolution: {integrity: sha512-54G+yH1DrqXpCrtSZF5SYvNma3W2iA/LH6hLWmADy5tW1CkPlvtHZ5essqrJtlk3lfNRYMWk3+13ejzXxDAWWw==}
@@ -932,6 +935,10 @@ packages:
       picomatch:
         optional: true
 
+  fetch-extras@3.2.1:
+    resolution: {integrity: sha512-MuxNR+WUQiu6i4xEDrtoSzSwoqDR2QhN8KU5jlFdAyM3aJmPYwOVC/PwkL5tqyzFMoxz9aGzYyPKRrnSkJQsEA==}
+    engines: {node: '>=22'}
+
   figures@6.1.0:
     resolution: {integrity: sha512-d+l3qxjSesT4V7v2fh+QnmFnUWv9lSpjarhShNTgBOfA0ttejbQUAlHLitbjkoRiDulW0OPoQPYIGhIC8ohejg==}
     engines: {node: '>=18'}
@@ -1370,6 +1377,12 @@ packages:
   onetime@7.0.0:
     resolution: {integrity: sha512-VXJjc87FScF88uafS3JllDgvAm+c/Slfz06lorj2uAY34rlUu0Nt+v8wreiImcrgAjjIHp1rXpTDlLOGw29WwQ==}
     engines: {node: '>=18'}
+
+  openapi-fetch@0.17.0:
+    resolution: {integrity: sha512-PsbZR1wAPcG91eEthKhN+Zn92FMHxv+/faECIwjXdxfTODGSGegYv0sc1Olz+HYPvKOuoXfp+0pA2XVt2cI0Ig==}
+
+  openapi-typescript-helpers@0.1.0:
+    resolution: {integrity: sha512-OKTGPthhivLw/fHz6c3OPtg72vi86qaMlqbJuVJ23qOvQ+53uw1n7HdmkJFibloF7QEjDrDkzJiOJuockM/ljw==}
 
   ora@9.4.0:
     resolution: {integrity: sha512-84cglkRILFxdtA8hAvLNdMrtBpPNBTrQ9/ulg0FA7xLMnD6mifv+enAIeRmvtv+WgdCE+LPGOfQmtJRrVaIVhQ==}
@@ -2025,6 +2038,10 @@ snapshots:
   '@esbuild/win32-x64@0.25.11':
     optional: true
 
+  '@filecoin-project/api-client@0.2.0':
+    dependencies:
+      openapi-fetch: 0.17.0
+
   '@filoz/synapse-core@0.7.0(typescript@6.0.3)(viem@2.51.3(typescript@6.0.3)(zod@4.4.3))':
     dependencies:
       dnum: 2.17.0
@@ -2196,6 +2213,7 @@ snapshots:
       '@types/node': 25.9.3
       pg-protocol: 1.14.0
       pg-types: 2.2.0
+    optional: true
 
   '@types/ws@8.18.1':
     dependencies:
@@ -2546,6 +2564,8 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.4
 
+  fetch-extras@3.2.1: {}
+
   figures@6.1.0:
     dependencies:
       is-unicode-supported: 2.1.0
@@ -2885,6 +2905,12 @@ snapshots:
     dependencies:
       mimic-function: 5.0.1
 
+  openapi-fetch@0.17.0:
+    dependencies:
+      openapi-typescript-helpers: 0.1.0
+
+  openapi-typescript-helpers@0.1.0: {}
+
   ora@9.4.0:
     dependencies:
       chalk: 5.6.2
@@ -2985,15 +3011,19 @@ snapshots:
   pg-cloudflare@1.4.0:
     optional: true
 
-  pg-connection-string@2.13.0: {}
+  pg-connection-string@2.13.0:
+    optional: true
 
-  pg-int8@1.0.1: {}
+  pg-int8@1.0.1:
+    optional: true
 
   pg-pool@3.14.0(pg@8.21.0):
     dependencies:
       pg: 8.21.0
+    optional: true
 
-  pg-protocol@1.14.0: {}
+  pg-protocol@1.14.0:
+    optional: true
 
   pg-types@2.2.0:
     dependencies:
@@ -3002,6 +3032,7 @@ snapshots:
       postgres-bytea: 1.0.1
       postgres-date: 1.0.7
       postgres-interval: 1.2.0
+    optional: true
 
   pg@8.21.0:
     dependencies:
@@ -3012,10 +3043,12 @@ snapshots:
       pgpass: 1.0.5
     optionalDependencies:
       pg-cloudflare: 1.4.0
+    optional: true
 
   pgpass@1.0.5:
     dependencies:
       split2: 4.2.0
+    optional: true
 
   picomatch@2.3.2: {}
 
@@ -3068,15 +3101,19 @@ snapshots:
 
   possible-typed-array-names@1.1.0: {}
 
-  postgres-array@2.0.0: {}
+  postgres-array@2.0.0:
+    optional: true
 
-  postgres-bytea@1.0.1: {}
+  postgres-bytea@1.0.1:
+    optional: true
 
-  postgres-date@1.0.7: {}
+  postgres-date@1.0.7:
+    optional: true
 
   postgres-interval@1.2.0:
     dependencies:
       xtend: 4.0.2
+    optional: true
 
   premove@4.0.0: {}
 
@@ -3175,7 +3212,8 @@ snapshots:
 
   source-map@0.6.1: {}
 
-  split2@4.2.0: {}
+  split2@4.2.0:
+    optional: true
 
   stdin-discarder@0.3.2: {}
 
@@ -3370,7 +3408,8 @@ snapshots:
 
   ws@8.21.0: {}
 
-  xtend@4.0.2: {}
+  xtend@4.0.2:
+    optional: true
 
   y18n@5.0.8: {}
 

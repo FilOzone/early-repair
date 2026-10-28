@@ -6,7 +6,7 @@
 
 The `repair` CLI helps prepare and run repair and replication jobs on Filecoin PDP datasets. It uses:
 
-- an indexer Postgres database as the read-only source of providers, datasets, and pieces
+- the [Filecoin API](https://github.com/filecoin-project/agents/tree/main/apps/filecoin-api) (`https://api.filecoin.io` by default) as the read-only source of providers, datasets, and pieces
 - a local SQLite database to track repair and replication jobs and per-piece operations
 - a configured Filecoin wallet to create datasets and submit on-chain add-piece transactions
 
@@ -24,7 +24,7 @@ repair --help
 
 ## Setup
 
-Run setup before using any command that talks to the indexer, local database, or wallet.
+Run setup before using any command that talks to the Filecoin API, local database, or wallet.
 
 ```bash
 repair setup
@@ -33,8 +33,7 @@ repair setup
 Setup prompts for:
 
 - private key for the repair wallet
-- mainnet indexer Postgres URL
-- calibration indexer Postgres URL
+- Filecoin API URL (defaults to `https://api.filecoin.io`)
 - chain, either Filecoin Mainnet `314` or Filecoin Calibration `314159`
 - local SQLite database path
 - dataset source label, used when creating repair target datasets (defaults to `early-repair`)
@@ -59,7 +58,7 @@ Interactive configuration and local database setup.
 repair setup
 ```
 
-Use this whenever you need to initialize the CLI, change the active chain, update indexer URLs, change the dataset source label, or move the local SQLite database.
+Use this whenever you need to initialize the CLI, change the active chain, change the Filecoin API URL, change the dataset source label, or move the local SQLite database.
 
 ### `repair wallet fund`
 
@@ -136,7 +135,7 @@ The command waits for the revoke transaction to be mined and returns the session
 
 ### `repair providers list`
 
-Lists PDP providers from the configured indexer.
+Lists PDP providers from the Filecoin API.
 
 ```bash
 repair providers list
@@ -149,13 +148,17 @@ By default, the command returns active PDP providers that are approved or endors
 - `serviceUrl`
 - `approved`
 - `endorsed`
-- `pieceCount`, the number of active indexed pieces for that provider
-- `totalSize`, the sum of active piece raw sizes formatted in decimal GB
 
 Use `--all` to include every active PDP provider, even if it is not approved or endorsed.
 
 ```bash
 repair providers list --all
+```
+
+Use `--stats` to also return `pieceCount`, the number of active indexed pieces for each provider, and `totalSize`, the sum of their raw sizes in decimal GB. The API has no aggregate endpoint, so this pages through every piece of every listed provider and can take a long time.
+
+```bash
+repair providers list --stats
 ```
 
 ### `repair datasets list`
@@ -166,7 +169,7 @@ Lists datasets owned by the configured repair wallet.
 repair datasets list
 ```
 
-Each dataset includes its ID, CDN/IPFS indexing flags, source, provider URL, PDP end epoch, and piece count.
+Each dataset includes its ID, CDN/IPFS indexing flags, source, provider URL, and PDP end epoch. Add `--stats` to include each dataset's active piece count, which pages through every piece.
 
 Filter by provider ID:
 
@@ -176,7 +179,7 @@ repair datasets list --provider-id 123
 
 ### `repair datasets show <id>`
 
-Shows a dataset from the configured indexer.
+Shows a dataset from the Filecoin API.
 
 ```bash
 repair datasets show 42
@@ -206,7 +209,7 @@ repair repair create --provider-id 101 --target-provider-id 202
 
 `--target-provider-id` is the provider that should receive the repaired pieces. It must be different from `--provider-id`.
 
-The command snapshots the current chain block number, creates a local repair row, scans active pieces for the source provider, deduplicates them by CID, and creates local `add_piece` operations. Pieces with no alternate provider are marked `skipped`. The command returns a `repairId`.
+The command snapshots the current chain block number, creates a local repair row, scans active pieces for the source provider, deduplicates them by CID, and creates local `add_piece` operations. For each piece it probes the approved and endorsed providers (endorsed first) with `HEAD /piece/{cid}`, then the provider being repaired as a last resort, and uses the first one that serves it as the pull source. Pieces that no provider serves are marked `skipped`. The command returns a `repairId`.
 
 ### `repair repair list`
 
@@ -235,7 +238,7 @@ Runs a pending repair.
 repair repair run 1
 ```
 
-The command first ensures the target repair dataset exists for the configured wallet and target provider. If no matching dataset exists, it creates one with IPFS indexing enabled and CDN disabled, using the configured source label. Then it processes pending `add_piece` operations by pulling pieces from alternate providers into the target provider and committing them on-chain.
+The command first ensures the target repair dataset exists for the configured wallet and target provider. If no matching dataset exists, it creates one with IPFS indexing enabled and CDN disabled, using the configured source label. Then it reads the CIDs already in the target dataset once, marks matching operations completed, and processes the remaining pending `add_piece` operations by pulling pieces from alternate providers into the target provider and committing them on-chain.
 
 Options:
 
@@ -337,7 +340,7 @@ repair second-copy create \
 
 `--pieces-file` is a JSON file with an `aggregates` array. Each aggregate must include a `piece_cid` string. Only aggregate `piece_cid` values are used; `sub_pieces` are ignored.
 
-`--source-provider-url` is the provider URL pieces are pulled from. It is not looked up in the indexer, so it can point at a provider on another network (for example Mainnet while the CLI is configured for Calibration).
+`--source-provider-url` is the provider URL pieces are pulled from. It is not looked up in the Filecoin API, so it can point at a provider on another network (for example Mainnet while the CLI is configured for Calibration).
 
 `--target-provider-id` is the provider on the configured chain that should receive the copied pieces. Its service URL must differ from `--source-provider-url`.
 

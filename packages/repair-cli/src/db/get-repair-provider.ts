@@ -1,47 +1,27 @@
-import { and, eq } from 'drizzle-orm'
+import type { Address } from 'viem'
+import { getProvider } from '../api.ts'
 import type { Context, RepairProvider } from '../types.ts'
 
-export interface GetRepairProviderOptions extends Pick<Context, 'indexerDb'> {
+export interface GetRepairProviderOptions extends Pick<Context, 'api'> {
   providerId: bigint
 }
 
 /**
  * Load an active provider by ID for use as a repair target.
  */
-export async function getRepairProvider({
-  indexerDb,
-  providerId,
-}: GetRepairProviderOptions): Promise<RepairProvider | null> {
-  const schema = indexerDb._.fullSchema
-  const [provider] = await indexerDb
-    .select({
-      providerId: schema.providers.providerId,
-      providerAddress: schema.providers.providerAddress,
-      name: schema.providers.name,
-      serviceUrl: schema.providers.serviceUrl,
-      approved: schema.providers.approved,
-      endorsed: schema.providers.endorsed,
-    })
-    .from(schema.providers)
-    .where(
-      and(
-        eq(schema.providers.providerId, providerId),
-        eq(schema.providers.providerActive, true),
-        eq(schema.providers.pdpProductActive, true)
-      )
-    )
-    .limit(1)
+export async function getRepairProvider({ api, providerId }: GetRepairProviderOptions): Promise<RepairProvider | null> {
+  const provider = await getProvider(api, providerId)
 
-  if (!provider?.providerAddress || !provider?.serviceUrl || !provider?.name) {
+  if (!provider?.active || !provider.pdpProductActive || !provider.serviceUrl || !provider.name) {
     return null
   }
 
   return {
-    providerId: provider.providerId,
-    providerAddress: provider.providerAddress,
+    providerId: BigInt(provider.providerId),
+    providerAddress: provider.address as Address,
     name: provider.name,
     serviceUrl: provider.serviceUrl,
-    approved: provider.approved,
-    endorsed: provider.endorsed,
+    approved: provider.approved ?? false,
+    endorsed: provider.endorsed ?? false,
   }
 }

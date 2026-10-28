@@ -3,21 +3,16 @@ import { Cli, z } from 'incur'
 import path from 'path'
 import type { Hash } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
+import { DEFAULT_API_URL } from '../api.ts'
 import { config, createLocalDatabase, globalOptions, migrateLocalDatabase } from '../utils.ts'
 
-function validatePostgresUrl(value: string) {
-  let url: URL
+function validateHttpUrl(value: string) {
   try {
-    url = new URL(value)
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
   } catch {
     return false
   }
-
-  if (url.protocol !== 'postgresql:' && url.protocol !== 'postgres:') {
-    return false
-  }
-
-  return Boolean(url.hostname && url.username && url.password && url.pathname.length > 1)
 }
 
 export const setup = Cli.create('setup', {
@@ -44,35 +39,18 @@ export const setup = Cli.create('setup', {
         })
       }
 
-      // Indexer URL
-      const indexerMainnetUrl = await p.text({
-        message: 'Enter your Mainnet Indexer Postgres URL',
+      // API URL
+      const apiUrl = await p.text({
+        message: 'Enter the Filecoin API URL',
         validate(value) {
-          if (!value || !validatePostgresUrl(value)) {
-            return `Invalid postgres URL!`
+          if (!value || !validateHttpUrl(value)) {
+            return `Invalid http(s) URL!`
           }
         },
-        initialValue: config.get('indexerMainnetUrl'),
+        initialValue: config.get('apiUrl') ?? DEFAULT_API_URL,
         withGuide: false,
       })
-      if (p.isCancel(indexerMainnetUrl)) {
-        return c.error({
-          code: 'SETUP_CANCELLED',
-          message: 'Setup cancelled',
-          retryable: false,
-        })
-      }
-      const indexerCalibrationUrl = await p.text({
-        message: 'Enter your Calibration Indexer Postgres URL',
-        validate(value) {
-          if (!value || !validatePostgresUrl(value)) {
-            return `Invalid postgres URL!`
-          }
-        },
-        initialValue: config.get('indexerCalibrationUrl'),
-        withGuide: false,
-      })
-      if (p.isCancel(indexerCalibrationUrl)) {
+      if (p.isCancel(apiUrl)) {
         return c.error({
           code: 'SETUP_CANCELLED',
           message: 'Setup cancelled',
@@ -129,8 +107,7 @@ export const setup = Cli.create('setup', {
 
       // Set config
       config.set('privateKey', pk)
-      config.set('indexerMainnetUrl', indexerMainnetUrl)
-      config.set('indexerCalibrationUrl', indexerCalibrationUrl)
+      config.set('apiUrl', apiUrl)
       config.set('chainId', chainId)
       config.set('dbPath', dbPath)
       config.set('source', source)

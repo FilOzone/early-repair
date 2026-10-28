@@ -105,10 +105,12 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.5.1",
+    "@filecoin-project/api-client": "^0.2.0",
     "@filoz/synapse-core": "^0.7.0",
     "@libsql/client": "^0.17.3",
     "conf": "^15.1.0",
     "drizzle-orm": "catalog:",
+    "fetch-extras": "^3.2.1",
     "incur": "^0.4.6",
     "iso-base": "^4.4.0",
     "iso-conf": "^0.4.0",
@@ -117,14 +119,12 @@
     "p-locate": "^7.0.0",
     "p-map": "^7.0.4",
     "p-queue": "^9.3.0",
-    "pg": "^8.21.0",
     "terminal-link": "^5.0.0",
     "viem": "catalog:"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "@types/node": "catalog:",
-    "@types/pg": "^8.20.0",
     "playwright-test": "^14.1.12",
     "type-fest": "^5.7.0",
     "typescript": "catalog:"

@@ -1,13 +1,12 @@
 import type { Chain } from '@filoz/synapse-core/chains'
-import { drizzle as drizzlePostgres } from 'drizzle-orm/node-postgres'
 import { middleware, z } from 'incur'
 import type { Account, Client, Transport } from 'viem'
-import * as indexerSchema from './indexer-schema.ts'
-import type { IndexerDatabase, LocalDatabase } from './types.ts'
+import { createIndexerApi } from './api.ts'
+import type { IndexerApi, LocalDatabase } from './types.ts'
 import { config, createLocalDatabase, getClient } from './utils.ts'
 
 export const contextSchema = z.object({
-  indexerDb: z.custom<IndexerDatabase>(),
+  api: z.custom<IndexerApi>(),
   localDb: z.custom<LocalDatabase>(),
   config: z.custom<typeof config>(),
   client: z.custom<Client<Transport, Chain, Account>>(),
@@ -17,9 +16,9 @@ export const contextSchema = z.object({
 })
 
 export const contextMiddleware = middleware<typeof contextSchema>(async (c, next) => {
-  const { dbPath, chainId, indexerMainnetUrl, indexerCalibrationUrl, source } = config.store
+  const { dbPath, chainId, apiUrl, source } = config.store
 
-  if (!dbPath || !chainId || !indexerMainnetUrl || !indexerCalibrationUrl || !source) {
+  if (!dbPath || !chainId || !source) {
     return c.error({
       code: 'CONFIG_NOT_SET',
       message: 'Config not set. Please run `repair setup` first.',
@@ -28,13 +27,11 @@ export const contextMiddleware = middleware<typeof contextSchema>(async (c, next
   }
 
   const localDb = await createLocalDatabase(dbPath)
-  const indexerDb = drizzlePostgres(chainId === 314 ? indexerMainnetUrl : indexerCalibrationUrl, {
-    schema: indexerSchema,
-  })
+  const api = createIndexerApi({ baseUrl: apiUrl, chainId })
 
   const { client, chain } = getClient(chainId)
   c.set('localDb', localDb)
-  c.set('indexerDb', indexerDb)
+  c.set('api', api)
   c.set('config', config)
   c.set('client', client)
   c.set('chain', chain)
@@ -43,5 +40,4 @@ export const contextMiddleware = middleware<typeof contextSchema>(async (c, next
   await next()
 
   localDb.$client.close()
-  await indexerDb.$client.end()
 })

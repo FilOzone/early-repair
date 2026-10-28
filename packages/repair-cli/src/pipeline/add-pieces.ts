@@ -3,17 +3,18 @@ import * as Piece from '@filoz/synapse-core/piece'
 import * as SP from '@filoz/synapse-core/sp'
 import { and, asc, eq, gt, inArray } from 'drizzle-orm'
 import PQueue from 'p-queue'
+import { listDataSetPieces } from '../api.ts'
 import { dedupeCids } from '../db/dedupe-cids.ts'
 import { getTargetDataset } from '../db/get-target-dataset.ts'
 import { repairUpdate } from '../db/repair-update.ts'
 import { upsertOperations } from '../db/upsert-operations.ts'
 import type { OperationSelect, RepairSelect } from '../local-schema.ts'
-import type { IndexerDatabase, LocalDatabase, WalletClient } from '../types.ts'
+import type { IndexerApi, LocalDatabase, WalletClient } from '../types.ts'
 import { completeConfirmedOperations, excludeOperationsByCid, hashLink, operationsToPullPieces } from '../utils.ts'
 
 export type RunPullPiecesPhaseOptions = {
   localDb: LocalDatabase
-  indexerDb: IndexerDatabase
+  api: IndexerApi
   repair: RepairSelect
   concurrency: number
   batchSize: number
@@ -22,7 +23,8 @@ export type RunPullPiecesPhaseOptions = {
 
 type CreateAddPiecesWorkerOptions = {
   localDb: LocalDatabase
-  indexerDb: IndexerDatabase
+  /** CIDs already in the target dataset; repairs only. Updated as batches are added. */
+  targetCids?: Set<string>
   repair: RepairSelect
   client: WalletClient
   state: {
@@ -42,12 +44,11 @@ type AddPiecesJobOptions = {
 /**
  * Create a worker function that adds pieces to the target repair dataset.
  */
-function createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log }: CreateAddPiecesWorkerOptions) {
+function createAddPiecesWorker({ localDb, targetCids, repair, client, state, log }: CreateAddPiecesWorkerOptions) {
   return async (options: AddPiecesJobOptions) => {
     let completedOps = 0
     let failedOps = 0
     let operations: OperationSelect[] = options.operations
-    const isRepair = repair.repairDataSetId == null
 
     const group = log.group(`Batch ${options.batchNumber}/${state.totalBatches}`)
 
@@ -55,8 +56,8 @@ function createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log 
       const dataset = await getTargetDataset({ localDb, repairId: repair.id, client })
 
       // dedupe operations by CID on the target dataset for repairs jobs
-      if (isRepair) {
-        operations = await dedupeCids({ indexerDb, localDb, dataSetId: dataset.dataSetId, operations })
+      if (targetCids) {
+        operations = await dedupeCids({ localDb, existingCids: targetCids, operations })
       }
       // A previous run may have submitted a transaction and crashed before marking rows completed.
       const operationsBeforeConfirmationCheck = operations.length
@@ -111,7 +112,7 @@ function createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log 
           clientDataSetId: dataset.clientDataSetId,
           pieces: operations.map((operation) => ({
             pieceCid: Piece.from(operation.cid),
-            metadata: isRepair ? undefined : operation.metadata,
+            metadata: targetCids ? undefined : operation.metadata,
           })),
         })
         await upsertOperations({
@@ -126,6 +127,7 @@ function createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log 
         const waitForAddPieces = await SP.waitForAddPieces(addPiecesResult)
         state.completedOperations += operations.length
         completedOps += operations.length
+        for (const operation of operations) targetCids?.add(operation.cid)
         await upsertOperations({
           localDb,
           operations: operations.map((operation) => ({
@@ -158,7 +160,7 @@ function createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log 
  */
 export async function runAddPieces({
   localDb,
-  indexerDb,
+  api,
   repair,
   concurrency,
   batchSize,
@@ -188,6 +190,14 @@ export async function runAddPieces({
     limit: 1,
   })
 
+  // Repairs and second copies dedupe into one shared dataset; read its CIDs once instead of per batch.
+  let targetCids: Set<string> | undefined
+  if (repair.repairDataSetId == null && totalOperations > 0) {
+    const dataset = await getTargetDataset({ localDb, repairId: repair.id, client })
+    const pieces = await listDataSetPieces(api, dataset.dataSetId, { removed: false })
+    targetCids = new Set(pieces.flatMap((piece) => (piece.cid == null ? [] : [piece.cid])))
+  }
+
   async function getNextBatch(): Promise<OperationSelect[] | null> {
     const operations = await localDb.query.operations.findMany({
       where: and(
@@ -207,7 +217,7 @@ export async function runAddPieces({
     return operations
   }
 
-  const addPiecesJob = createAddPiecesWorker({ localDb, indexerDb, repair, client, state, log })
+  const addPiecesJob = createAddPiecesWorker({ localDb, targetCids, repair, client, state, log })
   const queue = new PQueue({ concurrency })
 
   while (true) {

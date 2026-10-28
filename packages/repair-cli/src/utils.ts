@@ -3,7 +3,6 @@ import * as Piece from '@filoz/synapse-core/piece'
 import type * as SP from '@filoz/synapse-core/sp'
 import { getTableColumns, inArray, type SQL, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/libsql'
-import type { PgTable } from 'drizzle-orm/pg-core'
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core'
 import { z } from 'incur'
 import { Conf } from 'iso-conf'
@@ -20,8 +19,7 @@ import type { LocalDatabase, WalletClient } from './types.ts'
 
 export const configSchema = z.object({
   privateKey: z.string().optional(),
-  indexerMainnetUrl: z.url().optional(),
-  indexerCalibrationUrl: z.url().optional(),
+  apiUrl: z.url().optional(),
   chainId: z.number().optional(),
   dbPath: z.string().optional(),
   source: z.string().optional(),
@@ -273,7 +271,7 @@ export async function findPieceOnProviders(providers: string[], pieceCid: string
   return result
 }
 
-export const buildConflictUpdateColumns = <T extends PgTable | SQLiteTable, Q extends keyof T['_']['columns']>(
+export const buildConflictUpdateColumns = <T extends SQLiteTable, Q extends keyof T['_']['columns']>(
   table: T,
   columns?: Q[]
 ) => {

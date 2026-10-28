@@ -1,49 +1,38 @@
-import { and, asc, eq, isNull } from 'drizzle-orm'
 import type { Address } from 'viem'
-import type { IndexerDatabase } from '../types.ts'
+import { listDataSets } from '../api.ts'
+import type { IndexerApi } from '../types.ts'
 
 export type FindRepairDatasetOptions = {
-  indexerDb: IndexerDatabase
+  api: IndexerApi
   providerId: bigint
   payer: Address
   source: string
 }
 
 /**
- * Find one IPFS-enabled repair dataset for a provider at the repair block, if it exists.
+ * Find one live IPFS-enabled repair dataset for a provider, if it exists.
  *
  * When multiple datasets match, the lowest `dataSetId` is returned.
  */
 export async function findRepairDataset({
-  indexerDb,
+  api,
   providerId,
   payer,
   source,
 }: FindRepairDatasetOptions): Promise<bigint | null> {
-  const schema = indexerDb._.fullSchema
+  const dataSets = await listDataSets(api, {
+    owner: payer.toLowerCase(),
+    providerId,
+    deleted: false,
+    withCdn: false,
+  })
 
-  const result = await indexerDb
-    .select({
-      dataSetId: schema.dataSets.dataSetId,
-    })
-    .from(schema.dataSets)
-    .where(
-      and(
-        eq(schema.dataSets.providerId, providerId),
-        eq(schema.dataSets.deleted, false),
-        isNull(schema.dataSets.pdpEndEpoch),
-        eq(schema.dataSets.payer, payer.toLowerCase()),
-        eq(schema.dataSets.source, source),
-        eq(schema.dataSets.withCdn, false),
-        eq(schema.dataSets.withIpfsIndexing, true)
-      )
-    )
-    .orderBy(asc(schema.dataSets.dataSetId))
-    .limit(1)
-
-  if (result.length === 0) {
-    return null
+  let dataSetId: bigint | null = null
+  for (const dataSet of dataSets) {
+    if (dataSet.pdpEndEpoch != null || dataSet.source !== source || !dataSet.withIpfsIndexing) continue
+    const id = BigInt(dataSet.dataSetId)
+    if (dataSetId == null || id < dataSetId) dataSetId = id
   }
 
-  return result[0].dataSetId
+  return dataSetId
 }

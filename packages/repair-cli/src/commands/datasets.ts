@@ -1,9 +1,9 @@
 import * as p from '@clack/prompts'
 import * as SP from '@filoz/synapse-core/sp'
 import { getPdpDataSet } from '@filoz/synapse-core/warm-storage'
-import { and, asc, eq } from 'drizzle-orm'
 import { Cli, z } from 'incur'
 import { isAddress } from 'viem'
+import { getDataSet, getProvider, listDataSetPieces, listDataSets, listProviders } from '../api.ts'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
 import { globalOptions, hashLink } from '../utils.ts'
 
@@ -18,42 +18,33 @@ datasets.command('list', {
   options: globalOptions.extend({
     providerId: z.coerce.bigint().optional().describe('Filter datasets by provider ID'),
     payer: z.string().refine(isAddress, 'Invalid address').optional().describe('Filter datasets by payer address'),
+    stats: z.boolean().optional().default(false).describe('Include piece counts (slow: walks every piece)'),
   }),
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
-      const schema = c.var.indexerDb._.fullSchema
+      const { api } = c.var
       const payer = c.options.payer?.toLowerCase() ?? c.var.client.account.address.toLowerCase()
-      const conditions = [eq(schema.dataSets.deleted, false), eq(schema.dataSets.payer, payer)]
+      const [rows, providers] = await Promise.all([
+        listDataSets(api, { owner: payer, providerId: c.options.providerId, deleted: false }),
+        listProviders(api),
+      ])
+      const serviceUrls = new Map(providers.map((provider) => [provider.providerId, provider.serviceUrl]))
 
-      if (c.options.providerId != null) {
-        conditions.push(eq(schema.dataSets.providerId, c.options.providerId))
-      }
-
-      const datasets = await c.var.indexerDb.query.dataSets.findMany({
-        where: and(...conditions),
-        with: {
-          provider: true,
-          pieces: {
-            where: eq(c.var.indexerDb._.fullSchema.pieces.removed, false),
-          },
-        },
-        orderBy: [asc(schema.dataSets.dataSetId)],
-      })
-
-      const datasetsFlattened = datasets.map((dataset) => {
-        const { provider, pieces } = dataset
-        return {
+      const datasetsFlattened = []
+      for (const dataset of rows.reverse()) {
+        datasetsFlattened.push({
           id: dataset.dataSetId,
           withCdn: dataset.withCdn,
           withIpfsIndexing: dataset.withIpfsIndexing,
           source: dataset.source,
-          provider: provider.serviceUrl,
+          provider: dataset.providerId == null ? null : serviceUrls.get(dataset.providerId),
           pdpEndEpoch: dataset.pdpEndEpoch,
-          pieces: pieces.length,
-          //   metadata: JSON.stringify(dataset.metadata),
-        }
-      })
+          ...(c.options.stats && {
+            pieces: (await listDataSetPieces(api, BigInt(dataset.dataSetId), { removed: false })).length,
+          }),
+        })
+      }
 
       return c.ok({
         datasets: datasetsFlattened,
@@ -138,15 +129,8 @@ datasets.command('show', {
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
-      const dataset = await c.var.indexerDb.query.dataSets.findFirst({
-        where: eq(c.var.indexerDb._.fullSchema.dataSets.dataSetId, c.args.id),
-        with: {
-          provider: true,
-          pieces: {
-            where: eq(c.var.indexerDb._.fullSchema.pieces.removed, false),
-          },
-        },
-      })
+      const { api } = c.var
+      const dataset = await getDataSet(api, c.args.id)
 
       if (!dataset) {
         return c.error({
@@ -155,7 +139,11 @@ datasets.command('show', {
           retryable: false,
         })
       }
-      return c.ok(dataset)
+      const [provider, pieces] = await Promise.all([
+        dataset.providerId == null ? null : getProvider(api, BigInt(dataset.providerId)),
+        listDataSetPieces(api, c.args.id, { removed: false }),
+      ])
+      return c.ok({ ...dataset, provider, pieces: pieces.reverse() })
     } catch (error) {
       if (c.options.debug) {
         console.error(error)

@@ -1,18 +1,18 @@
 import * as p from '@clack/prompts'
 import * as SP from '@filoz/synapse-core/sp'
 import { getPDPProvider } from '@filoz/synapse-core/sp-registry'
-import { eq } from 'drizzle-orm'
 import type { Address } from 'viem'
+import { getDataSet, toStringMetadata } from '../api.ts'
 import { findRepairDataset } from '../db/find-repair-dataset.ts'
 import { repairUpdate } from '../db/repair-update.ts'
 import type { RepairSelect } from '../local-schema.ts'
-import type { IndexerDatabase, LocalDatabase, WalletClient } from '../types.ts'
+import type { IndexerApi, LocalDatabase, WalletClient } from '../types.ts'
 import { hashLink } from '../utils.ts'
 
 export type EnsureRepairDatasetOptions = {
   source: string
   localDb: LocalDatabase
-  indexerDb: IndexerDatabase
+  api: IndexerApi
   client: WalletClient
   repair: RepairSelect
   payer: Address
@@ -23,14 +23,7 @@ export type EnsureRepairDatasetOptions = {
  *
  * @param options - The options for ensuring the repair dataset.
  */
-export async function ensureRepairDataset({
-  source,
-  localDb,
-  indexerDb,
-  client,
-  repair,
-  payer,
-}: EnsureRepairDatasetOptions) {
+export async function ensureRepairDataset({ source, localDb, api, client, repair, payer }: EnsureRepairDatasetOptions) {
   const log = p.taskLog({
     title: 'Ensuring repair dataset',
   })
@@ -43,7 +36,7 @@ export async function ensureRepairDataset({
   let datasetId: bigint | null = null
   // check if dataset already exists
   const existingDatasetId = await findRepairDataset({
-    indexerDb,
+    api,
     providerId: repair.targetProviderId,
     payer,
     source,
@@ -83,13 +76,7 @@ export async function ensureRepairDataset({
  *
  * @param options - The options for ensuring the replication dataset.
  */
-export async function ensureReplicateDataset({
-  localDb,
-  indexerDb,
-  client,
-  repair,
-  payer,
-}: EnsureRepairDatasetOptions) {
+export async function ensureReplicateDataset({ localDb, api, client, repair, payer }: EnsureRepairDatasetOptions) {
   const log = p.taskLog({
     title: 'Ensuring replication dataset',
   })
@@ -109,14 +96,7 @@ export async function ensureReplicateDataset({
     return repair.targetDataSetId
   }
 
-  const schema = indexerDb._.fullSchema
-  const sourceDataSet = await indexerDb.query.dataSets.findFirst({
-    where: eq(schema.dataSets.dataSetId, repair.repairDataSetId),
-    columns: {
-      metadata: true,
-      withCdn: true,
-    },
-  })
+  const sourceDataSet = await getDataSet(api, repair.repairDataSetId)
 
   if (!sourceDataSet) {
     throw new Error(`Source dataset ${repair.repairDataSetId} not found`)
@@ -126,8 +106,8 @@ export async function ensureReplicateDataset({
     payee: provider.payee,
     serviceURL: provider.pdp.serviceURL,
     payer,
-    cdn: sourceDataSet.withCdn,
-    metadata: sourceDataSet.metadata ?? undefined,
+    cdn: sourceDataSet.withCdn ?? false,
+    metadata: sourceDataSet.metadata ? toStringMetadata(sourceDataSet.metadata) : undefined,
   })
   log.message(`Waiting for data to be created at ${provider.pdp.serviceURL} ${hashLink(txHash, client.chain)}...`)
   const waitForResult = await SP.waitForCreateDataSet({

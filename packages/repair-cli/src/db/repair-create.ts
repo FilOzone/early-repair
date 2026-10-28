@@ -18,7 +18,7 @@ export interface RepairCreateOptions extends Context {
  * @returns {Promise<number>} The ID of the created repair.
  */
 export async function repairCreate(options: RepairCreateOptions): Promise<number> {
-  const { indexerDb, localDb, repairProviderId, targetProviderId, client } = options
+  const { api, localDb, repairProviderId, targetProviderId, client } = options
   const localSchema = localDb._.fullSchema
   const now = Date.now()
   const blockNumber = await getBlockNumber(client)
@@ -34,7 +34,7 @@ export async function repairCreate(options: RepairCreateOptions): Promise<number
     throw new RepairCreationError('Target provider must differ from the provider being repaired')
   }
   const targetProvider = await getRepairProvider({
-    indexerDb,
+    api,
     providerId: targetProviderId,
   })
 
@@ -68,7 +68,7 @@ export async function repairCreate(options: RepairCreateOptions): Promise<number
   const seenCids = new Set<string>()
   await forEachPiecesPage(
     {
-      indexerDb,
+      api,
       providerId: repairProviderId,
       repairId: repair.id,
       blockNumber,
