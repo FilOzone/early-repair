@@ -1,6 +1,6 @@
 import { taskLog } from '@clack/prompts'
-import { eq } from 'drizzle-orm'
 import { getBlockNumber } from 'viem/actions'
+import { getDataSet } from '../api.ts'
 import { NoAlternateProviderError, RepairCreationError } from '../error.ts'
 import type { Context } from '../types.ts'
 import { forEachDataSetPiecesPage } from './get-pieces.ts'
@@ -18,8 +18,7 @@ export interface ReplicateCreateOptions extends Context {
  * @returns The ID of the created local job.
  */
 export async function replicateCreate(options: ReplicateCreateOptions): Promise<number> {
-  const { indexerDb, localDb, dataSetId, targetProviderId, client } = options
-  const indexerSchema = indexerDb._.fullSchema
+  const { api, localDb, dataSetId, targetProviderId, client } = options
   const localSchema = localDb._.fullSchema
   const now = Date.now()
   const blockNumber = await getBlockNumber(client)
@@ -30,35 +29,28 @@ export async function replicateCreate(options: ReplicateCreateOptions): Promise<
     retainLog: true,
   })
 
-  const [sourceDataSet] = await indexerDb
-    .select({
-      dataSetId: indexerSchema.dataSets.dataSetId,
-      providerId: indexerSchema.dataSets.providerId,
-      deleted: indexerSchema.dataSets.deleted,
-    })
-    .from(indexerSchema.dataSets)
-    .where(eq(indexerSchema.dataSets.dataSetId, dataSetId))
-    .limit(1)
+  const sourceDataSet = await getDataSet(api, dataSetId)
 
-  if (!sourceDataSet || sourceDataSet.deleted) {
+  if (!sourceDataSet || sourceDataSet.deleted || sourceDataSet.providerId == null) {
     throw new RepairCreationError(`Source dataset ${dataSetId} not found or deleted`)
   }
+  const sourceProviderId = BigInt(sourceDataSet.providerId)
 
-  if (targetProviderId === sourceDataSet.providerId) {
+  if (targetProviderId === sourceProviderId) {
     throw new RepairCreationError('Target provider must differ from the source dataset provider')
   }
 
   const sourceProvider = await getRepairProvider({
-    indexerDb,
-    providerId: sourceDataSet.providerId,
+    api,
+    providerId: sourceProviderId,
   })
 
   if (!sourceProvider) {
-    throw new RepairCreationError(`Source provider ${sourceDataSet.providerId} not found or inactive`)
+    throw new RepairCreationError(`Source provider ${sourceProviderId} not found or inactive`)
   }
 
   const targetProvider = await getRepairProvider({
-    indexerDb,
+    api,
     providerId: targetProviderId,
   })
 
@@ -71,7 +63,7 @@ export async function replicateCreate(options: ReplicateCreateOptions): Promise<
     .values({
       kind: 'replicate',
       repairProviderId: sourceProvider.providerId,
-      repairDataSetId: sourceDataSet.dataSetId,
+      repairDataSetId: dataSetId,
       sourceProviderUrl: sourceProvider.serviceUrl,
       targetProviderId: targetProvider.providerId,
       targetProviderUrl: targetProvider.serviceUrl,
@@ -87,8 +79,8 @@ export async function replicateCreate(options: ReplicateCreateOptions): Promise<
   let totalOperations = 0
   await forEachDataSetPiecesPage(
     {
-      indexerDb,
-      dataSetId: sourceDataSet.dataSetId,
+      api,
+      dataSetId,
       repairId: repair.id,
       sourceProviderUrl: sourceProvider.serviceUrl,
     },

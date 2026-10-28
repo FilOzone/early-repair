@@ -1,6 +1,7 @@
-import { and, asc, count, eq, inArray, isNull, lte, or, type SQLWrapper, sum } from 'drizzle-orm'
 import { Cli, z } from 'incur'
 import { getBlockNumber } from 'viem/actions'
+import { listProviders, providerPiecePages } from '../api.ts'
+import { getActiveDataSetIds } from '../db/get-active-data-set-ids.ts'
 import { contextMiddleware, contextSchema } from '../middleware.ts'
 import { globalOptions } from '../utils.ts'
 
@@ -10,6 +11,13 @@ function formatBytesAsGb(bytes: bigint): string {
   const whole = scaled / 100n
   const fraction = scaled % 100n
   return `${whole}.${fraction.toString().padStart(2, '0')} GB`
+}
+
+/** Compare decimal ID strings numerically. */
+function compareIds(a: string, b: string): number {
+  const x = BigInt(a)
+  const y = BigInt(b)
+  return x < y ? -1 : x > y ? 1 : 0
 }
 
 export const providers = Cli.create('providers', {
@@ -22,51 +30,36 @@ providers.command('list', {
   description: 'List all providers from the indexer',
   options: globalOptions.extend({
     all: z.boolean().optional().default(false).describe('Include all providers'),
+    stats: z
+      .boolean()
+      .optional()
+      .default(false)
+      .describe('Include piece count and total size (slow: walks every piece of each provider)'),
   }),
   middleware: [contextMiddleware],
   run: async (c) => {
     try {
-      const schema = c.var.indexerDb._.fullSchema
-      const filters: (SQLWrapper | undefined)[] = [
-        eq(schema.providers.providerActive, true),
-        eq(schema.providers.pdpProductActive, true),
-      ]
-      if (!c.options.all) {
-        filters.push(or(eq(schema.providers.approved, true), eq(schema.providers.endorsed, true)))
-      }
-      const blockNumber = await getBlockNumber(c.var.client)
-      const rows = await c.var.indexerDb.query.providers.findMany({
-        orderBy: [asc(schema.providers.providerId)],
-        where: and(...filters),
-      })
+      const { api } = c.var
+      const rows = (await listProviders(api, { active: true }))
+        .filter((provider) => provider.pdpProductActive && (c.options.all || provider.approved || provider.endorsed))
+        .sort((a, b) => compareIds(a.providerId, b.providerId))
 
-      const providerIds = rows.map((provider) => provider.providerId)
-      const statsByProviderId = new Map<bigint, { pieceCount: number; totalSize: bigint }>()
+      const statsByProviderId = new Map<string, { pieceCount: number; totalSize: bigint }>()
 
-      if (providerIds.length > 0) {
-        const stats = await c.var.indexerDb
-          .select({
-            providerId: schema.dataSets.providerId,
-            pieceCount: count(schema.pieces.pieceId),
-            totalSize: sum(schema.pieces.rawSize),
-          })
-          .from(schema.pieces)
-          .innerJoin(schema.dataSets, eq(schema.pieces.dataSetId, schema.dataSets.dataSetId))
-          .where(
-            and(
-              inArray(schema.dataSets.providerId, providerIds),
-              eq(schema.dataSets.deleted, false),
-              or(isNull(schema.dataSets.pdpEndEpoch), lte(schema.dataSets.pdpEndEpoch, blockNumber)),
-              eq(schema.pieces.removed, false)
-            )
-          )
-          .groupBy(schema.dataSets.providerId)
-
-        for (const stat of stats) {
-          statsByProviderId.set(stat.providerId, {
-            pieceCount: stat.pieceCount,
-            totalSize: stat.totalSize == null ? 0n : BigInt(stat.totalSize),
-          })
+      if (c.options.stats && rows.length > 0) {
+        const blockNumber = await getBlockNumber(c.var.client)
+        for (const provider of rows) {
+          const providerId = BigInt(provider.providerId)
+          const activeDataSetIds = await getActiveDataSetIds({ api, providerId, blockNumber })
+          const stats = { pieceCount: 0, totalSize: 0n }
+          for await (const pieces of providerPiecePages(api, providerId, { removed: false })) {
+            for (const piece of pieces) {
+              if (!activeDataSetIds.has(piece.dataSetId)) continue
+              stats.pieceCount++
+              stats.totalSize += BigInt(piece.rawSize ?? 0)
+            }
+          }
+          statsByProviderId.set(provider.providerId, stats)
         }
       }
 
@@ -78,8 +71,7 @@ providers.command('list', {
           serviceUrl: provider.serviceUrl,
           approved: provider.approved,
           endorsed: provider.endorsed,
-          pieceCount: stats?.pieceCount ?? 0,
-          totalSize: formatBytesAsGb(stats?.totalSize ?? 0n),
+          ...(stats && { pieceCount: stats.pieceCount, totalSize: formatBytesAsGb(stats.totalSize) }),
         }
       })
 

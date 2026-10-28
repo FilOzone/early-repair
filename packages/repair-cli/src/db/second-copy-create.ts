@@ -76,7 +76,7 @@ export async function parsePieceCidsFromFile(piecesFile: string): Promise<string
  * @returns The ID of the created local job.
  */
 export async function secondCopyCreate(options: SecondCopyCreateOptions): Promise<number> {
-  const { indexerDb, localDb, piecesFile, sourceProviderUrl, targetProviderId, client } = options
+  const { api, localDb, piecesFile, sourceProviderUrl, targetProviderId, client } = options
   const localSchema = localDb._.fullSchema
   const now = Date.now()
   const blockNumber = await getBlockNumber(client)
@@ -89,7 +89,7 @@ export async function secondCopyCreate(options: SecondCopyCreateOptions): Promis
   })
 
   const targetProvider = await getRepairProvider({
-    indexerDb,
+    api,
     providerId: targetProviderId,
   })
 
