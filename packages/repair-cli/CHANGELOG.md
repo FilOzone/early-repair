@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/FilOzone/early-repair/compare/repair-cli-v1.1.1...repair-cli-v1.1.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* shrink pull chunks when Curio pushes back ([#65](https://github.com/FilOzone/early-repair/issues/65)) ([501e469](https://github.com/FilOzone/early-repair/commit/501e4693fa0204e655e2133f013aa830eefc3af5))
+
 ## [1.1.1](https://github.com/FilOzone/early-repair/compare/repair-cli-v1.1.0...repair-cli-v1.1.1) (2026-10-29)
 
 
