@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/FilOzone/early-repair/compare/repair-cli-v1.1.0...repair-cli-v1.1.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* keep pulls within Curio's admission limits ([#63](https://github.com/FilOzone/early-repair/issues/63)) ([cc0156c](https://github.com/FilOzone/early-repair/commit/cc0156c238050189cc263a5d4b634e609c308a16))
+
 ## [1.1.0](https://github.com/FilOzone/early-repair/compare/repair-cli-v1.0.0...repair-cli-v1.1.0) (2026-10-29)
 
 
