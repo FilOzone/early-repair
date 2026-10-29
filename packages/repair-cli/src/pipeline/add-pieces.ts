@@ -1,5 +1,7 @@
 import { taskLog } from '@clack/prompts'
+import { PullError } from '@filoz/synapse-core/errors'
 import * as SP from '@filoz/synapse-core/sp'
+import { signAddPieces } from '@filoz/synapse-core/typed-data'
 import { and, asc, eq, gt, inArray } from 'drizzle-orm'
 import PQueue from 'p-queue'
 import { listDataSetPieces } from '../api.ts'
@@ -28,8 +30,19 @@ const MAX_BATCH_CANDIDATES = 500
  */
 const MAX_PULL_PIECES = 108
 
+/**
+ * Other clients' pending pieces lower our per-client limit, but never below 10.
+ * Pulls this small are refused only when the whole node is full.
+ */
+const MIN_PULL_PIECES = 10
+
 /** Curio answers 429 with Retry-After (1-5 minutes) while its pull queue is full; wait it out instead of failing. */
 const PULL_RETRY_COUNT = 10
+
+/** Curio's 429 body when a pull would exceed its pending-piece limits. */
+function isPullBackpressure(error: unknown) {
+  return PullError.is(error) && error.details?.includes('pull queue backpressure') === true
+}
 
 export type RunPullPiecesPhaseOptions = {
   localDb: LocalDatabase
@@ -45,8 +58,8 @@ type CreateAddPiecesWorkerOptions = {
   localDb: LocalDatabase
   /** CIDs already in the target dataset; repairs only. Updated as batches are added. */
   targetCids?: Set<string>
-  /** Max unique pieces per pull request. */
-  pullChunkSize: number
+  /** Max unique pieces per pull request, shared by all workers and lowered when Curio pushes back. */
+  pullChunk: { size: number }
   repair: RepairSelect
   client: WalletClient
   state: {
@@ -63,12 +76,86 @@ type AddPiecesJobOptions = {
 }
 
 /**
+ * Pull pieces in chunks Curio admits, one chunk at a time.
+ * When Curio refuses a chunk for backpressure, halve `pullChunk.size` (shared with other workers) and try again.
+ */
+export async function pullInChunks({
+  client,
+  serviceURL,
+  dataSetId,
+  clientDataSetId,
+  pieces: pullPieces,
+  pullChunk,
+  onMessage,
+}: {
+  client: WalletClient
+  serviceURL: string
+  dataSetId: bigint
+  clientDataSetId: bigint
+  pieces: SP.PullPieceInput[]
+  pullChunk: { size: number }
+  onMessage: (message: string) => void
+}): Promise<SP.pullPieces.ReturnType['pieces']> {
+  const results: SP.pullPieces.ReturnType['pieces'] = []
+  let offset = 0
+  while (offset < pullPieces.length) {
+    const pieces = pullPieces.slice(offset, offset + pullChunk.size)
+    // Sign once so the admission check and the wait below share one pull.
+    const extraData = await signAddPieces(client, {
+      clientDataSetId,
+      pieces: pieces.map(({ pieceCid }) => ({ pieceCid })),
+    })
+
+    // Another client's pending pull lowers our limit; shrink the chunk instead of waiting on the same size.
+    if (pullChunk.size > MIN_PULL_PIECES) {
+      try {
+        // Single POST: the SDK's own retries would wait out Retry-After on the same size.
+        await SP.pullPiecesApiRequest({
+          serviceURL,
+          recordKeeper: client.chain.contracts.fwss.address,
+          extraData,
+          dataSetId,
+          pieces: pieces.map(({ pieceCid, sourceUrl }) => ({ pieceCid: pieceCid.toString(), sourceUrl })),
+          retryCount: 0,
+        })
+      } catch (error) {
+        if (isPullBackpressure(error)) {
+          pullChunk.size = Math.max(MIN_PULL_PIECES, Math.floor(Math.min(pullChunk.size, pieces.length) / 2))
+          onMessage(`Curio pull queue is busy, pulling ${pullChunk.size} pieces at a time`)
+          continue
+        }
+        // Leave other errors to the retries in waitForPullPieces.
+      }
+    }
+
+    const pullResult = await SP.waitForPullPieces(client, {
+      serviceURL,
+      dataSetId,
+      clientDataSetId,
+      pieces,
+      extraData,
+      retryCount: PULL_RETRY_COUNT,
+      onStatus: (status) => {
+        const completed = status.pieces.filter((piece) => piece.status === 'complete').length
+        const failed = status.pieces.filter((piece) => piece.status === 'failed').length
+        onMessage(
+          `Pulling pieces ${offset + 1}-${offset + pieces.length} of ${pullPieces.length}: ${completed} completed, ${failed} failed`
+        )
+      },
+    })
+    results.push(...pullResult.pieces)
+    offset += pieces.length
+  }
+  return results
+}
+
+/**
  * Create a worker function that adds pieces to the target repair dataset.
  */
 function createAddPiecesWorker({
   localDb,
   targetCids,
-  pullChunkSize,
+  pullChunk,
   repair,
   client,
   state,
@@ -100,39 +187,31 @@ function createAddPiecesWorker({
       group.message(`Pulling ${operations.length} pieces...`)
       // pull pieces in chunks that Curio admits, one chunk at a time per worker
       if (operations.length > 0) {
-        const pullPieces = operationsToPullPieces(operations)
-        const pullChunks = Math.ceil(pullPieces.length / pullChunkSize)
-        for (let offset = 0; offset < pullPieces.length; offset += pullChunkSize) {
-          const chunk = offset / pullChunkSize + 1
-          const pullResult = await SP.waitForPullPieces(client, {
-            serviceURL: repair.targetProviderUrl,
-            dataSetId: dataset.dataSetId,
-            clientDataSetId: dataset.clientDataSetId,
-            pieces: pullPieces.slice(offset, offset + pullChunkSize),
-            retryCount: PULL_RETRY_COUNT,
-            onStatus: (status) => {
-              const completed = status.pieces.filter((piece) => piece.status === 'complete').length
-              const failed = status.pieces.filter((piece) => piece.status === 'failed').length
-              group.message(`Pull ${chunk}/${pullChunks}: ${completed} completed, ${failed} failed`)
-            },
-          })
+        const pullResult = await pullInChunks({
+          client,
+          serviceURL: repair.targetProviderUrl,
+          dataSetId: dataset.dataSetId,
+          clientDataSetId: dataset.clientDataSetId,
+          pieces: operationsToPullPieces(operations),
+          pullChunk,
+          onMessage: (message) => group.message(message),
+        })
 
-          for (const { pieceCid, status } of pullResult.pieces) {
-            const cid = pieceCid.toString()
-            if (status !== 'complete') {
-              state.failedOperations++
-              failedOps++
-              const { operationToFailed, operationToCommit } = excludeOperationsByCid(operations, cid)
-              operations = operationToCommit
-              await upsertOperations({
-                localDb,
-                operations: operationToFailed.map((operation) => ({
-                  ...operation,
-                  status: 'failed',
-                  error: `pull failed with status ${status}`,
-                })),
-              })
-            }
+        for (const { pieceCid, status } of pullResult) {
+          const cid = pieceCid.toString()
+          if (status !== 'complete') {
+            state.failedOperations++
+            failedOps++
+            const { operationToFailed, operationToCommit } = excludeOperationsByCid(operations, cid)
+            operations = operationToCommit
+            await upsertOperations({
+              localDb,
+              operations: operationToFailed.map((operation) => ({
+                ...operation,
+                status: 'failed',
+                error: `pull failed with status ${status}`,
+              })),
+            })
           }
         }
       }
@@ -262,8 +341,8 @@ export async function runAddPieces({
   }
 
   // Keep pieces pulling across all workers within Curio's per-client limit.
-  const pullChunkSize = Math.max(1, Math.floor(MAX_PULL_PIECES / concurrency))
-  const addPiecesJob = createAddPiecesWorker({ localDb, targetCids, pullChunkSize, repair, client, state, log })
+  const pullChunk = { size: Math.max(1, Math.floor(MAX_PULL_PIECES / concurrency)) }
+  const addPiecesJob = createAddPiecesWorker({ localDb, targetCids, pullChunk, repair, client, state, log })
   const queue = new PQueue({ concurrency })
 
   while (true) {
