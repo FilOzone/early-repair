@@ -1,5 +1,4 @@
 import { taskLog } from '@clack/prompts'
-import * as Piece from '@filoz/synapse-core/piece'
 import * as SP from '@filoz/synapse-core/sp'
 import { and, asc, eq, gt, inArray } from 'drizzle-orm'
 import PQueue from 'p-queue'
@@ -10,14 +9,25 @@ import { repairUpdate } from '../db/repair-update.ts'
 import { upsertOperations } from '../db/upsert-operations.ts'
 import type { OperationSelect, RepairSelect } from '../local-schema.ts'
 import type { IndexerApi, LocalDatabase, WalletClient } from '../types.ts'
-import { completeConfirmedOperations, excludeOperationsByCid, hashLink, operationsToPullPieces } from '../utils.ts'
+import {
+  completeConfirmedOperations,
+  excludeOperationsByCid,
+  fitAddPiecesBatch,
+  hashLink,
+  operationsToAddPieces,
+  operationsToPullPieces,
+} from '../utils.ts'
+
+/** Operations read per batch before fitting; above the ~400 metadata-free pieces one addPieces message holds. */
+const MAX_BATCH_CANDIDATES = 500
 
 export type RunPullPiecesPhaseOptions = {
   localDb: LocalDatabase
   api: IndexerApi
   repair: RepairSelect
   concurrency: number
-  batchSize: number
+  /** Max pieces per batch. Defaults to as many as fit in one addPieces message. */
+  batchSize?: number
   client: WalletClient
 }
 
@@ -28,7 +38,6 @@ type CreateAddPiecesWorkerOptions = {
   repair: RepairSelect
   client: WalletClient
   state: {
-    totalBatches: number
     totalOperations: number
     completedOperations: number
     failedOperations: number
@@ -50,7 +59,7 @@ function createAddPiecesWorker({ localDb, targetCids, repair, client, state, log
     let failedOps = 0
     let operations: OperationSelect[] = options.operations
 
-    const group = log.group(`Batch ${options.batchNumber}/${state.totalBatches}`)
+    const group = log.group(`Batch ${options.batchNumber} (${options.operations.length} pieces)`)
 
     try {
       const dataset = await getTargetDataset({ localDb, repairId: repair.id, client })
@@ -76,7 +85,6 @@ function createAddPiecesWorker({ localDb, targetCids, repair, client, state, log
           dataSetId: dataset.dataSetId,
           clientDataSetId: dataset.clientDataSetId,
           pieces: operationsToPullPieces(operations),
-          timeout: 1000 * 60 * 30, // 30 minutes
           onStatus: (status) => {
             const completed = status.pieces.filter((piece) => piece.status === 'complete').length
             const failed = status.pieces.filter((piece) => piece.status === 'failed').length
@@ -110,10 +118,7 @@ function createAddPiecesWorker({ localDb, targetCids, repair, client, state, log
           serviceURL: repair.targetProviderUrl,
           dataSetId: dataset.dataSetId,
           clientDataSetId: dataset.clientDataSetId,
-          pieces: operations.map((operation) => ({
-            pieceCid: Piece.from(operation.cid),
-            metadata: targetCids ? undefined : operation.metadata,
-          })),
+          pieces: operationsToAddPieces(operations, !targetCids),
         })
         await upsertOperations({
           localDb,
@@ -125,6 +130,8 @@ function createAddPiecesWorker({ localDb, targetCids, repair, client, state, log
 
         group.message(`Waiting for add pieces ${hashLink(addPiecesResult.txHash, client.chain)}...`)
         const waitForAddPieces = await SP.waitForAddPieces(addPiecesResult)
+        // Curio may replace the message by fee; record the hash that landed on chain.
+        const confirmedTxHash = waitForAddPieces.confirmedTxHash ?? waitForAddPieces.txHash
         state.completedOperations += operations.length
         completedOps += operations.length
         for (const operation of operations) targetCids?.add(operation.cid)
@@ -134,7 +141,7 @@ function createAddPiecesWorker({ localDb, targetCids, repair, client, state, log
             ...operation,
             status: 'completed',
             error: null,
-            txHash: waitForAddPieces.txHash,
+            txHash: confirmedTxHash,
           })),
         })
       }
@@ -179,7 +186,6 @@ export async function runAddPieces({
   )
   let batchNumber = 0
   const state = {
-    totalBatches: Math.ceil(totalOperations / batchSize),
     totalOperations,
     completedOperations: 0,
     failedOperations: 0,
@@ -190,16 +196,20 @@ export async function runAddPieces({
     limit: 1,
   })
 
+  const dataset = totalOperations > 0 ? await getTargetDataset({ localDb, repairId: repair.id, client }) : undefined
+
   // Repairs and second copies dedupe into one shared dataset; read its CIDs once instead of per batch.
   let targetCids: Set<string> | undefined
-  if (repair.repairDataSetId == null && totalOperations > 0) {
-    const dataset = await getTargetDataset({ localDb, repairId: repair.id, client })
+  if (repair.repairDataSetId == null && dataset) {
     const pieces = await listDataSetPieces(api, dataset.dataSetId, { removed: false })
     targetCids = new Set(pieces.flatMap((piece) => (piece.cid == null ? [] : [piece.cid])))
   }
 
   async function getNextBatch(): Promise<OperationSelect[] | null> {
-    const operations = await localDb.query.operations.findMany({
+    if (!dataset) {
+      return null
+    }
+    const candidates = await localDb.query.operations.findMany({
       where: and(
         eq(localSchema.operations.repairId, repair.id),
         eq(localSchema.operations.type, 'add_piece'),
@@ -207,11 +217,19 @@ export async function runAddPieces({
         gt(localSchema.operations.id, cursor)
       ),
       orderBy: [asc(localSchema.operations.id)],
-      limit: batchSize,
+      limit: batchSize ?? MAX_BATCH_CANDIDATES,
     })
-    if (operations.length === 0) {
+    if (candidates.length === 0) {
       return null
     }
+
+    // Size the batch by what fits in one addPieces message rather than a fixed piece count.
+    const operations = fitAddPiecesBatch({
+      operations: candidates,
+      dataSetId: dataset.dataSetId,
+      chain: client.chain,
+      withMetadata: !targetCids,
+    })
 
     cursor = operations.at(-1)?.id ?? cursor
     return operations

@@ -1,5 +1,5 @@
 import type { ApiClient } from '@filecoin-project/api-client'
-import type { Chain } from '@filoz/synapse-core/chains'
+import type { FilecoinChain } from '@filoz/synapse-core/chains'
 import type { Client } from '@libsql/client'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import type { z } from 'incur'
@@ -26,7 +26,7 @@ export interface Config {
   dbPath: string
 }
 
-export type WalletClient = ViemClient<Transport, Chain, Account>
+export type WalletClient = ViemClient<Transport, FilecoinChain, Account>
 
 export type Context = z.infer<typeof contextSchema>
 

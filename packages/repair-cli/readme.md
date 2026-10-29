@@ -243,13 +243,13 @@ The command first ensures the target repair dataset exists for the configured wa
 Options:
 
 - `--concurrency <number>` controls how many pull batches run at once. Defaults to `4`.
-- `--batch-size <number>` controls the maximum number of `add_piece` operations per batch. Defaults to `40`.
+- `--batch-size <number>` caps the number of `add_piece` operations per batch. By default each batch holds as many pieces as fit in one `addPieces` message (about 400 without piece metadata, 80 for legacy datasets).
 - `--payer <address>` overrides the payer address used when creating or finding the target repair dataset. Defaults to the configured wallet address.
 
 Example:
 
 ```bash
-repair repair run 1 --concurrency 8 --batch-size 40
+repair repair run 1 --concurrency 8 --batch-size 100
 repair repair run 1 --payer 0x1234567890123456789012345678901234567890
 ```
 
@@ -307,13 +307,13 @@ The command creates a new target dataset on the target provider, copying CDN and
 Options:
 
 - `--concurrency <number>` controls how many pull batches run at once. Defaults to `4`.
-- `--batch-size <number>` controls the maximum number of `add_piece` operations per batch. Defaults to `40`.
+- `--batch-size <number>` caps the number of `add_piece` operations per batch. By default each batch holds as many pieces as fit in one `addPieces` message (about 400 without piece metadata, 80 for legacy datasets).
 - `--payer <address>` overrides the payer address used when creating the target replication dataset. Defaults to the configured wallet address.
 
 Example:
 
 ```bash
-repair replicate run 1 --concurrency 8 --batch-size 40
+repair replicate run 1 --concurrency 8 --batch-size 100
 repair replicate run 1 --payer 0x1234567890123456789012345678901234567890
 ```
 
@@ -376,13 +376,13 @@ The command first ensures the target dataset exists for the configured wallet an
 Options:
 
 - `--concurrency <number>` controls how many pull batches run at once. Defaults to `4`.
-- `--batch-size <number>` controls the maximum number of `add_piece` operations per batch. Defaults to `40`.
+- `--batch-size <number>` caps the number of `add_piece` operations per batch. By default each batch holds as many pieces as fit in one `addPieces` message (about 400 without piece metadata, 80 for legacy datasets).
 - `--payer <address>` overrides the payer address used when creating or finding the target dataset. Defaults to the configured wallet address.
 
 Example:
 
 ```bash
-repair second-copy run 1 --concurrency 8 --batch-size 40
+repair second-copy run 1 --concurrency 8 --batch-size 100
 repair second-copy run 1 --payer 0x1234567890123456789012345678901234567890
 ```
 
