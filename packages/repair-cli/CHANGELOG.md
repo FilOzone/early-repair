@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/FilOzone/early-repair/compare/repair-cli-v1.0.0...repair-cli-v1.1.0) (2026-10-29)
+
+
+### Features
+
+* size addPieces batches by message limit ([#61](https://github.com/FilOzone/early-repair/issues/61)) ([cd2d84d](https://github.com/FilOzone/early-repair/commit/cd2d84d3395e176b482211da458d3828c670b62c))
+
 ## [1.0.0](https://github.com/FilOzone/early-repair/compare/repair-cli-v0.4.0...repair-cli-v1.0.0) (2026-10-28)
 
 
