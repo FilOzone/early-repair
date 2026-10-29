@@ -242,7 +242,7 @@ The command first ensures the target repair dataset exists for the configured wa
 
 Options:
 
-- `--concurrency <number>` controls how many pull batches run at once. Defaults to `4`.
+- `--concurrency <number>` controls how many batches run at once. Defaults to `4`. Each batch pulls its pieces in chunks so that no more than 108 pieces are pulling at once across all batches, which is Curio's per-client limit. With `4`, each pull request holds up to 27 pieces.
 - `--batch-size <number>` caps the number of `add_piece` operations per batch. By default each batch holds as many pieces as fit in one `addPieces` message (about 400 without piece metadata, 80 for legacy datasets).
 - `--payer <address>` overrides the payer address used when creating or finding the target repair dataset. Defaults to the configured wallet address.
 
@@ -306,7 +306,7 @@ The command creates a new target dataset on the target provider, copying CDN and
 
 Options:
 
-- `--concurrency <number>` controls how many pull batches run at once. Defaults to `4`.
+- `--concurrency <number>` controls how many batches run at once. Defaults to `4`. Each batch pulls its pieces in chunks so that no more than 108 pieces are pulling at once across all batches, which is Curio's per-client limit. With `4`, each pull request holds up to 27 pieces.
 - `--batch-size <number>` caps the number of `add_piece` operations per batch. By default each batch holds as many pieces as fit in one `addPieces` message (about 400 without piece metadata, 80 for legacy datasets).
 - `--payer <address>` overrides the payer address used when creating the target replication dataset. Defaults to the configured wallet address.
 
@@ -375,7 +375,7 @@ The command first ensures the target dataset exists for the configured wallet an
 
 Options:
 
-- `--concurrency <number>` controls how many pull batches run at once. Defaults to `4`.
+- `--concurrency <number>` controls how many batches run at once. Defaults to `4`. Each batch pulls its pieces in chunks so that no more than 108 pieces are pulling at once across all batches, which is Curio's per-client limit. With `4`, each pull request holds up to 27 pieces.
 - `--batch-size <number>` caps the number of `add_piece` operations per batch. By default each batch holds as many pieces as fit in one `addPieces` message (about 400 without piece metadata, 80 for legacy datasets).
 - `--payer <address>` overrides the payer address used when creating or finding the target dataset. Defaults to the configured wallet address.
 

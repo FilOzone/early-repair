@@ -21,6 +21,16 @@ import {
 /** Operations read per batch before fitting; above the ~400 metadata-free pieces one addPieces message holds. */
 const MAX_BATCH_CANDIDATES = 500
 
+/**
+ * Curio admits at most 108 unique pieces per pull request and 108 pending pulled pieces per client.
+ *
+ * @see https://github.com/filecoin-project/curio/blob/main/pdp/pull_types.go
+ */
+const MAX_PULL_PIECES = 108
+
+/** Curio answers 429 with Retry-After (1-5 minutes) while its pull queue is full; wait it out instead of failing. */
+const PULL_RETRY_COUNT = 10
+
 export type RunPullPiecesPhaseOptions = {
   localDb: LocalDatabase
   api: IndexerApi
@@ -35,6 +45,8 @@ type CreateAddPiecesWorkerOptions = {
   localDb: LocalDatabase
   /** CIDs already in the target dataset; repairs only. Updated as batches are added. */
   targetCids?: Set<string>
+  /** Max unique pieces per pull request. */
+  pullChunkSize: number
   repair: RepairSelect
   client: WalletClient
   state: {
@@ -53,7 +65,15 @@ type AddPiecesJobOptions = {
 /**
  * Create a worker function that adds pieces to the target repair dataset.
  */
-function createAddPiecesWorker({ localDb, targetCids, repair, client, state, log }: CreateAddPiecesWorkerOptions) {
+function createAddPiecesWorker({
+  localDb,
+  targetCids,
+  pullChunkSize,
+  repair,
+  client,
+  state,
+  log,
+}: CreateAddPiecesWorkerOptions) {
   return async (options: AddPiecesJobOptions) => {
     let completedOps = 0
     let failedOps = 0
@@ -78,35 +98,41 @@ function createAddPiecesWorker({ localDb, targetCids, repair, client, state, log
       }
 
       group.message(`Pulling ${operations.length} pieces...`)
-      // pull pieces
+      // pull pieces in chunks that Curio admits, one chunk at a time per worker
       if (operations.length > 0) {
-        const pullResult = await SP.waitForPullPieces(client, {
-          serviceURL: repair.targetProviderUrl,
-          dataSetId: dataset.dataSetId,
-          clientDataSetId: dataset.clientDataSetId,
-          pieces: operationsToPullPieces(operations),
-          onStatus: (status) => {
-            const completed = status.pieces.filter((piece) => piece.status === 'complete').length
-            const failed = status.pieces.filter((piece) => piece.status === 'failed').length
-            group.message(`Pull ${completed} completed, ${failed} failed`)
-          },
-        })
+        const pullPieces = operationsToPullPieces(operations)
+        const pullChunks = Math.ceil(pullPieces.length / pullChunkSize)
+        for (let offset = 0; offset < pullPieces.length; offset += pullChunkSize) {
+          const chunk = offset / pullChunkSize + 1
+          const pullResult = await SP.waitForPullPieces(client, {
+            serviceURL: repair.targetProviderUrl,
+            dataSetId: dataset.dataSetId,
+            clientDataSetId: dataset.clientDataSetId,
+            pieces: pullPieces.slice(offset, offset + pullChunkSize),
+            retryCount: PULL_RETRY_COUNT,
+            onStatus: (status) => {
+              const completed = status.pieces.filter((piece) => piece.status === 'complete').length
+              const failed = status.pieces.filter((piece) => piece.status === 'failed').length
+              group.message(`Pull ${chunk}/${pullChunks}: ${completed} completed, ${failed} failed`)
+            },
+          })
 
-        for (const { pieceCid, status } of pullResult.pieces) {
-          const cid = pieceCid.toString()
-          if (status !== 'complete') {
-            state.failedOperations++
-            failedOps++
-            const { operationToFailed, operationToCommit } = excludeOperationsByCid(operations, cid)
-            operations = operationToCommit
-            await upsertOperations({
-              localDb,
-              operations: operationToFailed.map((operation) => ({
-                ...operation,
-                status: 'failed',
-                error: `pull failed with status ${status}`,
-              })),
-            })
+          for (const { pieceCid, status } of pullResult.pieces) {
+            const cid = pieceCid.toString()
+            if (status !== 'complete') {
+              state.failedOperations++
+              failedOps++
+              const { operationToFailed, operationToCommit } = excludeOperationsByCid(operations, cid)
+              operations = operationToCommit
+              await upsertOperations({
+                localDb,
+                operations: operationToFailed.map((operation) => ({
+                  ...operation,
+                  status: 'failed',
+                  error: `pull failed with status ${status}`,
+                })),
+              })
+            }
           }
         }
       }
@@ -235,7 +261,9 @@ export async function runAddPieces({
     return operations
   }
 
-  const addPiecesJob = createAddPiecesWorker({ localDb, targetCids, repair, client, state, log })
+  // Keep pieces pulling across all workers within Curio's per-client limit.
+  const pullChunkSize = Math.max(1, Math.floor(MAX_PULL_PIECES / concurrency))
+  const addPiecesJob = createAddPiecesWorker({ localDb, targetCids, pullChunkSize, repair, client, state, log })
   const queue = new PQueue({ concurrency })
 
   while (true) {
