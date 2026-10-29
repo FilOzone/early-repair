@@ -137,7 +137,11 @@ secondCopy.command('run', {
   }),
   options: globalOptions.extend({
     concurrency: z.coerce.number().min(1).max(10).default(4).describe('Concurrency level'),
-    batchSize: z.coerce.number().min(1).max(40).default(40).describe('Max pieces per batch'),
+    batchSize: z.coerce
+      .number()
+      .min(1)
+      .optional()
+      .describe('Max pieces per batch. Defaults to as many as fit in one addPieces message'),
     payer: z.string().refine(isAddress, 'Invalid address').optional().describe('Payer address'),
   }),
   middleware: [contextMiddleware],

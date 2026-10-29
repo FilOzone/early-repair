@@ -83,12 +83,19 @@ datasets.command('terminate', {
           retryable: false,
         })
       }
+      if (!dataset.provider) {
+        return c.error({
+          code: 'PROVIDER_NOT_FOUND',
+          message: `Provider ${dataset.providerId} for dataset ${dataset.dataSetId} is not available`,
+          retryable: false,
+        })
+      }
       if (isInteractive) {
-        spinner.message(`Terminating dataset ${dataset?.dataSetId} at ${dataset?.provider.pdp.serviceURL}...`)
+        spinner.message(`Terminating dataset ${dataset.dataSetId} at ${dataset.provider.pdp.serviceURL}...`)
       }
       const result = await SP.terminateService(c.var.client, {
         dataSetId: c.args.id,
-        serviceURL: dataset?.provider.pdp.serviceURL,
+        serviceURL: dataset.provider.pdp.serviceURL,
       })
 
       const waitForResult = await SP.waitForTerminateService({

@@ -1,6 +1,6 @@
-import { type Chain, getChain } from '@filoz/synapse-core/chains'
+import { type FilecoinChain, getChain } from '@filoz/synapse-core/chains'
 import * as Piece from '@filoz/synapse-core/piece'
-import type * as SP from '@filoz/synapse-core/sp'
+import * as SP from '@filoz/synapse-core/sp'
 import { getTableColumns, inArray, type SQL, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/libsql'
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core'
@@ -166,7 +166,7 @@ export async function migrateLocalDatabase(db: LocalDatabase) {
  * @param chain - The chain to use
  * @returns The link
  */
-export function hashLink(hash: string, chain: Chain) {
+export function hashLink(hash: string, chain: FilecoinChain) {
   const link = terminalLink(hash, `${chain.blockExplorers?.default?.url}/tx/${hash}`)
   return link
 }
@@ -326,4 +326,58 @@ export function operationsToPullPieces(operations: OperationSelect[]) {
     cids.add(operation.cid)
   }
   return pieces
+}
+
+/**
+ * Convert operations to addPieces inputs. Repairs and second copies add pieces without metadata.
+ */
+export function operationsToAddPieces(operations: OperationSelect[], withMetadata: boolean) {
+  return operations.map((operation) => ({
+    pieceCid: Piece.from(operation.cid),
+    metadata: withMetadata ? operation.metadata : undefined,
+  }))
+}
+
+/**
+ * Take the longest prefix of operations that fits in one addPieces message.
+ * Always returns at least one operation so an oversized piece fails in the worker instead of stalling the queue.
+ */
+export function fitAddPiecesBatch({
+  operations,
+  dataSetId,
+  chain,
+  withMetadata,
+}: {
+  operations: OperationSelect[]
+  dataSetId: bigint
+  chain: FilecoinChain
+  withMetadata: boolean
+}): OperationSelect[] {
+  const pieces = operationsToAddPieces(operations, withMetadata)
+  const fits = (count: number) => {
+    try {
+      return SP.addPiecesFits({
+        kind: 'addPieces',
+        dataSetId,
+        legacyPieceStorageIdLimit: chain.legacyPieceStorageIdLimit,
+        pieces: pieces.slice(0, count),
+      })
+    } catch {
+      // Invalid metadata throws; isolate that piece so addPieces fails it in the worker.
+      return false
+    }
+  }
+
+  // Calldata only grows as pieces are added, so binary search the largest prefix that fits.
+  let low = 1
+  let high = operations.length
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2)
+    if (fits(mid)) {
+      low = mid
+    } else {
+      high = mid - 1
+    }
+  }
+  return operations.slice(0, low)
 }

@@ -106,7 +106,7 @@
   "dependencies": {
     "@clack/prompts": "^1.5.1",
     "@filecoin-project/api-client": "^0.2.0",
-    "@filoz/synapse-core": "^0.7.0",
+    "@filoz/synapse-core": "^0.10.2",
     "@libsql/client": "^0.17.3",
     "conf": "^15.1.0",
     "drizzle-orm": "catalog:",

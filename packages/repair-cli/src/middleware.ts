@@ -1,4 +1,4 @@
-import type { Chain } from '@filoz/synapse-core/chains'
+import type { FilecoinChain } from '@filoz/synapse-core/chains'
 import { middleware, z } from 'incur'
 import type { Account, Client, Transport } from 'viem'
 import { createIndexerApi } from './api.ts'
@@ -9,8 +9,8 @@ export const contextSchema = z.object({
   api: z.custom<IndexerApi>(),
   localDb: z.custom<LocalDatabase>(),
   config: z.custom<typeof config>(),
-  client: z.custom<Client<Transport, Chain, Account>>(),
-  chain: z.custom<Chain>(),
+  client: z.custom<Client<Transport, FilecoinChain, Account>>(),
+  chain: z.custom<FilecoinChain>(),
   source: z.string(),
   isInteractive: z.boolean(),
 })
