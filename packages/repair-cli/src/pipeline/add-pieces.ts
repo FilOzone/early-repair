@@ -105,9 +105,13 @@ export async function pullInChunks({
       clientDataSetId,
       pieces: pieces.map(({ pieceCid }) => ({ pieceCid })),
     })
+    // Another worker may have shrunk the shared size while this chunk was signed; re-slice to match.
+    if (pieces.length > pullChunk.size) {
+      continue
+    }
 
     // Another client's pending pull lowers our limit; shrink the chunk instead of waiting on the same size.
-    if (pullChunk.size > MIN_PULL_PIECES) {
+    if (pieces.length > MIN_PULL_PIECES) {
       try {
         // Single POST: the SDK's own retries would wait out Retry-After on the same size.
         await SP.pullPiecesApiRequest({
