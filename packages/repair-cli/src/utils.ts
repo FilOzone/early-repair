@@ -340,7 +340,7 @@ export function operationsToAddPieces(operations: OperationSelect[], withMetadat
 
 /**
  * Take the longest prefix of operations that fits in one addPieces message.
- * Always returns at least one operation so an oversized piece fails in the worker instead of stalling the queue.
+ * Always returns at least one operation so an oversized or invalid piece fails in the worker instead of stalling the queue.
  */
 export function fitAddPiecesBatch({
   operations,
@@ -353,7 +353,19 @@ export function fitAddPiecesBatch({
   chain: FilecoinChain
   withMetadata: boolean
 }): OperationSelect[] {
-  const pieces = operationsToAddPieces(operations, withMetadata)
+  // Malformed CIDs throw; stop before the first one so it fails alone in the worker.
+  const pieces: SP.LimiterPiece[] = []
+  for (const operation of operations) {
+    try {
+      pieces.push(...operationsToAddPieces([operation], withMetadata))
+    } catch {
+      break
+    }
+  }
+  if (pieces.length === 0) {
+    return operations.slice(0, 1)
+  }
+
   const fits = (count: number) => {
     try {
       return SP.addPiecesFits({
@@ -370,7 +382,7 @@ export function fitAddPiecesBatch({
 
   // Calldata only grows as pieces are added, so binary search the largest prefix that fits.
   let low = 1
-  let high = operations.length
+  let high = pieces.length
   while (low < high) {
     const mid = Math.ceil((low + high) / 2)
     if (fits(mid)) {
